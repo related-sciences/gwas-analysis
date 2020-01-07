@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "java",
+    "-Xss2m",
+    "-jar",
+    "/home/eczech/.local/share/jupyter/kernels/scala/launcher.jar",
+    "--extra-repository",
+    "https://jitpack.io",
+    "--metabrowse",
+    "true",
+    "--connection-file",
+    "{connection_file}"
+  ],
+  "display_name": "Scala",
+  "language": "scala"
+}
