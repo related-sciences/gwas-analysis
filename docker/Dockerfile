@@ -81,6 +81,7 @@ RUN apt-get update --fix-missing && \
     apt-get install -y wget bzip2 ca-certificates libglib2.0-0 libxext6 libsm6 libxrender1 git mercurial subversion && \
     apt-get clean
 
+# Note that the installation in /opt/conda must be accessible to the login user for environment creation
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh -O ~/miniconda.sh && \
     /bin/bash ~/miniconda.sh -b -p /opt/conda && \
     rm ~/miniconda.sh && \
@@ -90,7 +91,8 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.7.12-Linux-x86
     echo "conda activate base" >> ~/.bashrc && \
     find /opt/conda/ -follow -type f -name '*.a' -delete && \
     find /opt/conda/ -follow -type f -name '*.js.map' -delete && \
-    /opt/conda/bin/conda clean -afy
+    /opt/conda/bin/conda clean -afy && \
+    chown -R $USERNAME:$USERNAME /opt/conda
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Image Configuration
@@ -103,24 +105,41 @@ RUN curl -L -o sbt.deb https://dl.bintray.com/sbt/debian/sbt-1.3.3.deb && dpkg -
 RUN apt-get update && apt-get -y install htop vim procps
 RUN echo "N" | apt-get install sudo
 
-# Ammonite (for Scala 2.12)
-RUN echo '#!/usr/bin/env sh' > /usr/local/bin/amm && \
-    curl -L https://github.com/lihaoyi/Ammonite/releases/download/1.8.2/2.12-1.8.2 >> /usr/local/bin/amm && \
-    chmod +x /usr/local/bin/amm
+# PLINK
+# Adapted from: https://github.com/GELOG/plink/blob/master/plink-2.0-bin/docker/Dockerfile
+# Download is from https://www.cog-genomics.org/plink2 (version = 1.90 beta)
+RUN wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20200107.zip && \
+  unzip plink_linux_x86_64_20200107.zip -d /usr/local/plink && \
+  rm plink_linux_x86_64_20200107.zip
 
-# Python Environment
+# Switch to login user for remainder of build
 RUN mkdir -p /lab/build
 RUN chown $USERNAME:$USERNAME /lab/build
 WORKDIR /lab/build
+USER $USERNAME
+
+# PLINK env vars
+RUN echo '\n\
+export PLINK_HOME=/usr/local/plink\n\
+export PATH=/usr/local/plink:$PATH\n\
+' >> ~/.bashrc
+ENV PATH /usr/local/plink:$PATH
+ENV PLINK_HOME /usr/local/plink
+
+# Python Environment
 COPY environment.yml .
 RUN conda env create -f environment.yml
 RUN conda init bash
 RUN echo "conda activate hail" >> ~/.bashrc
 ENV PATH /opt/conda/envs/hail/bin:$PATH
 
+# Jupyter Extensions
+RUN conda install -c conda-forge jupyter_contrib_nbextensions && \
+  jupyter contrib nbextension install --user && \
+  jupyter nbextension enable execute_time/ExecuteTime
+
 # Almond (must install as user to use)
 # Install options: https://almond.sh/docs/install-options
-USER $USERNAME
 RUN SCALA_VERSION=2.11.12 ALMOND_VERSION=0.6.0 && \
     curl -Lo coursier https://git.io/coursier-cli && \
     chmod +x coursier && \
@@ -133,9 +152,12 @@ RUN SCALA_VERSION=2.11.12 ALMOND_VERSION=0.6.0 && \
     --extra-repository https://jitpack.io
 # While somewhat redundant to the coursier arguments above, install a manually defined
 # kernel with the same launcher arguments AND JVM arguments, which cannot be specified
-# to the install script 
+# to the install script
 COPY kernel-almond.json /home/$USERNAME/.local/share/jupyter/kernels/scala/kernel.json
 
 WORKDIR /home/$USERNAME
 RUN mkdir repos data
+
+# Ensure that jupyter defaults to bash shell
+ENV SHELL /bin/bash
 CMD /bin/bash -c "jupyter lab --allow-root --ip=0.0.0.0"
