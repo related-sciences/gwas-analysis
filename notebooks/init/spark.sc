@@ -8,6 +8,8 @@ Logger.getLogger("org").setLevel(Level.WARN)
 val ss = {
   NotebookSparkSession
     .builder()
+    // See https://github.com/almond-sh/almond/blob/620011b6edd152a84d3ac2637d45620a8b95af02/modules/scala/almond-spark/src/main/scala/org/apache/spark/sql/almondinternals/NotebookSparkSessionBuilder.scala
+    .progress(enable=true, keep=false)
     .config("spark.sql.shuffle.partitions", "1")
     .config("spark.ui.enabled", "false")
     .config("spark.driver.host", "localhost")
