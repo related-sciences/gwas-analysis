@@ -37,6 +37,10 @@ print(mt_pr.entry.take(5))
 
 IPython and Jupyter can be used too, but they need to be initialized with some of the properties above (driver memory at the very least).  This isn't actually documented well but instructions like in this [post](https://beehive.cs.princeton.edu/category/uncategorized/) could probably help.
 
+**Installing BLAS**
+
+```sudo apt-get install libatlas-base-dev```
+
 ### Glow Notes
 
 
@@ -69,4 +73,14 @@ plink --bfile HapMap_3_r3_1 --recode vcf --biallelic-only --out HapMap_3_r3_1.vc
 # other tools may not accept the file.  (Valid codes must either start with a
 # '<', only contain characters in {A,C,G,T,N,a,c,g,t,n}, be an isolated '*', or
 # represent a breakend.)
+```
+
+#### Data Notes
+
+1000 Genomes data size:
+
+```bash
+# From: ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20100804/ALL.2of4intersection.20100804.genotypes.vcf.gz
+gzip -cd ALL.2of4intersection.20100804.genotypes.vcf.gz | wc
+25488507 16261656124 501287626783 // ~500G decompressed
 ```
