@@ -111,6 +111,8 @@ RUN echo "N" | apt-get install sudo
 RUN wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20200107.zip && \
   unzip plink_linux_x86_64_20200107.zip -d /usr/local/plink && \
   rm plink_linux_x86_64_20200107.zip
+COPY plink-pipe /usr/local/bin/plink-pipe 
+RUN chmod a+rx /usr/local/bin/plink-pipe
 
 # Switch to login user for remainder of build
 RUN mkdir -p /lab/build

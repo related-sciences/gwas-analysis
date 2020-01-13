@@ -1,0 +1,4 @@
+#!/bin/bash
+prefix=plink-$(cat /proc/sys/kernel/random/uuid)
+plink --vcf /dev/stdin "${@:2}" --out prefix > /dev/null
+cat prefix.$1
