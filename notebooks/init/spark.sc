@@ -5,15 +5,23 @@ import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.DataFrame
 Logger.getLogger("org").setLevel(Level.WARN)
 
-val ss = {
+// Spark session generator for local mode analyses 
+def getLocalSparkSession(
+    enableProgress: Boolean = false, 
+    keepProgress: Boolean = false, 
+    enableUI: Boolean = false, 
+    shufflePartitions: Int = 1,
+    master: String = "local[*]",
+    driverHost: String = "localhost"
+  ) = {
   NotebookSparkSession
     .builder()
     // See https://github.com/almond-sh/almond/blob/620011b6edd152a84d3ac2637d45620a8b95af02/modules/scala/almond-spark/src/main/scala/org/apache/spark/sql/almondinternals/NotebookSparkSessionBuilder.scala
-    .progress(enable=true, keep=false)
-    .config("spark.sql.shuffle.partitions", "1")
-    .config("spark.ui.enabled", "false")
-    .config("spark.driver.host", "localhost")
-    .master("local[*]")
+    .progress(enable=enableProgress, keep=keepProgress)
+    .config("spark.sql.shuffle.partitions", shufflePartitions)
+    .config("spark.ui.enabled", enableUI)
+    .config("spark.driver.host", driverHost)
+    .master(master)
     .getOrCreate()
 }
 

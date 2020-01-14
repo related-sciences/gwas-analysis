@@ -2,3 +2,4 @@
 *.log
 .ipynb_checkpoints
 plink.*
+prefix.*

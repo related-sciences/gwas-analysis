@@ -8,8 +8,9 @@ dependencies:
 - numpy=1.17.2
 - matplotlib=3.1.1
 - plotnine=0.6.0
-- jupyterlab
+- nteract-scrapbook=0.3.1
+- jupyterlab=1.2.4
 - jupyter
 - pip
 - pip:
-  - hail
+  - hail=0.2.30

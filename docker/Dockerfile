@@ -71,6 +71,11 @@ RUN curl -sL --retry 3 \
  && mv /usr/$SPARK_PACKAGE $SPARK_HOME \
  && chown -R root:root $SPARK_HOME
 
+# Default the driver memory to something very large since the purpose of this container is to run local mode tests
+# Note: This is crucial for making hail work by default in local mode
+RUN cp $SPARK_HOME/conf/spark-env.sh.template $SPARK_HOME/conf/spark-env.sh && \
+  echo "export SPARK_DRIVER_MEMORY=32G" >> $SPARK_HOME/conf/spark-env.sh
+
 # ----------------------------------------------------------------------------------------------------------------------
 # Conda Initialization
 # ----------------------------------------------------------------------------------------------------------------------
@@ -111,8 +116,14 @@ RUN echo "N" | apt-get install sudo
 RUN wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20200107.zip && \
   unzip plink_linux_x86_64_20200107.zip -d /usr/local/plink && \
   rm plink_linux_x86_64_20200107.zip
-COPY plink-pipe /usr/local/bin/plink-pipe 
+COPY plink-pipe /usr/local/bin/plink-pipe
 RUN chmod a+rx /usr/local/bin/plink-pipe
+
+# Ammonite (for Scala 2.11)
+# https://github.com/lihaoyi/Ammonite/releases/tag/1.6.7 is last release w/ 2.11 support
+RUN echo '#!/usr/bin/env sh' > /usr/local/bin/amm && \
+    curl -L https://github.com/lihaoyi/Ammonite/releases/download/1.6.7/2.11-1.6.7 >> /usr/local/bin/amm && \
+    chmod +x /usr/local/bin/amm
 
 # Switch to login user for remainder of build
 RUN mkdir -p /lab/build

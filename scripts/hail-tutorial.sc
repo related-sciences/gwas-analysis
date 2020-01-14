@@ -14,7 +14,7 @@ mt.write(osp.join(data_dir, 'HapMap_3_r3_1.mt'), overwrite=True)
 
 mt = hl.read_matrix_table(osp.join(data_dir, 'HapMap_3_r3_1.mt'))
 
-mt = mt.annotate_cols(pheno = table[mt.s])
+# mt = mt.annotate_cols(pheno = table[mt.s])
 
 # Check .fam data
 mt.col.describe()

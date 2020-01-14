@@ -1,11 +1,15 @@
+import $file.^.init.paths, paths._
+
 
 /*
  * Time execution of an operation
  */
-def time[T](block: => T): T = {
+def timer[T](key: String)(op: String)(block: => T): T = {
     val start = System.currentTimeMillis
     val res = block
-    val elapsed = System.currentTimeMillis - start
+    val curr = System.currentTimeMillis
+    val elapsed = curr - start
+    File("benchmarks.csv").appendLine(s"$curr\t$key\t$op\t$elapsed")
     println("Elapsed time: %.1f seconds".format(elapsed.toDouble / 1000.0))
     res
 }
