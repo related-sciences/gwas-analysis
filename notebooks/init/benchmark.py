@@ -4,7 +4,8 @@ import os
 from IPython.core.magic import cell_magic, magics_class, Magics
 from IPython.core import magic_arguments
 
-DEFAULT_PATH_FORMAT = 'benchmarks/benchmarks_{key}.csv'
+SESSION = int(time.time() * 1000)
+DEFAULT_PATH_FORMAT = 'benchmarks/benchmarks_{key}_{session}.csv'
 
 
 def timeit(key, op, fn, path_format=DEFAULT_PATH_FORMAT):
@@ -13,11 +14,11 @@ def timeit(key, op, fn, path_format=DEFAULT_PATH_FORMAT):
     c = int(time.time() * 1000) # current time in ms
     e = int(c - (t * 1000)) # elapsed ms
     print("Elapsed time: {:.1f} seconds".format(e/1000))
-    path = path_format.format(key=key)
+    path = path_format.format(key=key, session=SESSION)
     if not osp.exists(osp.dirname(path)):
         os.makedirs(osp.dirname(path))
     with open(path, 'a') as fd:
-        fd.write('{}\t{}\t{}\t{}\n'.format(c, key, op, e))
+        fd.write('\t'.join([SESSION, c, key, op, e]) + '\n')
     return res
     
 @magics_class
