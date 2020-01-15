@@ -1,5 +1,5 @@
 import $file.^.init.paths, paths._
-
+import better.files.File
 
 /*
  * Time execution of an operation
