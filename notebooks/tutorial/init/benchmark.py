@@ -18,7 +18,7 @@ def timeit(key, op, fn, path_format=DEFAULT_PATH_FORMAT):
     if not osp.exists(osp.dirname(path)):
         os.makedirs(osp.dirname(path))
     with open(path, 'a') as fd:
-        fd.write('\t'.join([SESSION, c, key, op, e]) + '\n')
+        fd.write('\t'.join(map(str, [SESSION, c, key, op, e])) + '\n')
     return res
     
 @magics_class
@@ -34,7 +34,10 @@ class TimeOpMagic(Magics):
     @cell_magic
     def timeop(self, line='', cell=None):
         args = magic_arguments.parse_argstring(self.timeop, line)
-        return timeit(self.key, args.op, lambda: self.shell.ex(cell), path_format=self.path_format)
+        # See: https://stackoverflow.com/questions/53204167/is-it-possible-to-combine-magics-in-ipython-jupyter
+        # for why this can be used to chain magics (this one must come first)
+        # Note that run_cell(cell) returns ExecutionResult
+        return timeit(self.key, args.op, lambda: self.shell.run_cell(cell).result, path_format=self.path_format)
     
 def register_timeop_magic(ip, key):
-    ip.register_magics(TimeOpMagic(ip, 'hail'))
+    ip.register_magics(TimeOpMagic(ip, key))
