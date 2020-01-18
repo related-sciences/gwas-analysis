@@ -11,4 +11,21 @@ All of links in https://storage.googleapis.com/hail-datasets/datasets.json curre
 
 Hail 1KG Data: https://console.cloud.google.com/storage/browser/hail-datasets/1000_genomes.phase3.GRCh38.mt
 
+### 1KG Data Notes
 
+- ALL.2of4intersection.20100804.genotypes
+    - count = (25488488, 629)
+    - 10375501 variants have rsid "."
+    - 15112987 are unique ids
+
+- ALL.2of4intersection.20100804.genotypes_no_missing_IDs
+    - count = (25488488, 629)
+    - All rsids unique
+    - code:
+    ```
+    mt = hl.read_matrix_table(osp.join(data_dir, 'ALL.2of4intersection.20100804.genotypes_no_missing_IDs.mt'))
+    rows = mt.rows()
+    cts = rows.group_by(rows.rsid).aggregate(n=hl.agg.count())
+    cts.group_by(cts.n).aggregate(nn=hl.agg.count()).show()
+    # shows 1 -> 25488488
+    ```

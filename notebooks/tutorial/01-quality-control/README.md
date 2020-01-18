@@ -84,3 +84,8 @@ plink --bfile HapMap_3_r3_1 --recode vcf --biallelic-only --out HapMap_3_r3_1.vc
 gzip -cd ALL.2of4intersection.20100804.genotypes.vcf.gz | wc
 25488507 16261656124 501287626783 // ~500G decompressed
 ```
+
+### Liftover Notes
+
+- [chain file spec](https://genome.ucsc.edu/goldenPath/help/chain.html)
+- [hail variant liftover function](https://hail.is/docs/0.2/guides/genetics.html#liftover-howto )
