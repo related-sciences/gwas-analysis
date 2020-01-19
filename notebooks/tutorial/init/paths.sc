@@ -10,3 +10,5 @@ val QC2_FILE = "HapMap_3_r3_6"
 val QC3_FILE = "HapMap_3_r3_8"
 val QC4_FILE = "HapMap_3_r3_9"
 val QC5_FILE = "HapMap_3_r3_10"
+
+val PS1_1KG_QC = "1KG_QC"
