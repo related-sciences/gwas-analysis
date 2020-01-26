@@ -86,6 +86,9 @@ RUN apt-get update --fix-missing && \
     apt-get install -y wget bzip2 ca-certificates libglib2.0-0 libxext6 libsm6 libxrender1 git mercurial subversion && \
     apt-get clean
 
+# Install depedencides for plotly-orca from https://github.com/plotly/orca/issues/150#issuecomment-519192367
+RUN apt-get install xvfb libgconf-2-4 libxss1
+
 # Note that the installation in /opt/conda must be accessible to the login user for environment creation
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh -O ~/miniconda.sh && \
     /bin/bash ~/miniconda.sh -b -p /opt/conda && \
@@ -118,6 +121,9 @@ RUN wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20200107.zip &
   rm plink_linux_x86_64_20200107.zip
 COPY plink-pipe /usr/local/bin/plink-pipe
 RUN chmod a+rx /usr/local/bin/plink-pipe
+
+# R
+RUN apt-get -y install r-base
 
 # Ammonite (for Scala 2.11)
 # https://github.com/lihaoyi/Ammonite/releases/tag/1.6.7 is last release w/ 2.11 support

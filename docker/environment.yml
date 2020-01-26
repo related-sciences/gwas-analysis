@@ -1,6 +1,7 @@
 name: hail
 channels:
 - conda-forge
+- plotly
 - defaults
 dependencies:
 - python=3.7
@@ -12,6 +13,9 @@ dependencies:
 - seaborn=0.9.0
 - nteract-scrapbook=0.3.1
 - jupyterlab=1.2.4
+- dash-bio=0.4.5
+- psutil=5.6.7
+- plotly-orca=1.2.1
 - jupyter
 - pip
 - pip:
