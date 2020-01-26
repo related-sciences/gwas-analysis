@@ -14,3 +14,7 @@ PS1_1KG_QC_FILE = "Hail_1KG_QC"
 PS3_HM_FILE = "Hail_HapMap_Prep"
 PS3_1KG_FILE = "Hail_1KG_Prep"
 PS4_MERGE_FILE = "Hail_1KG_HapMap_Merge"
+PS5_COVAR_PCA_FILE = "covar_pca"
+
+AA1_LOGISTIC_GWAS_FILE = "hail_gwas_logistic"
+AA1_ASSOC_GWAS_FILE = "hail_gwas_assoc"
