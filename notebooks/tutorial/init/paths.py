@@ -5,7 +5,6 @@ QC3_FILE = "HapMap_3_r3_8"
 QC4_FILE = "HapMap_3_r3_9"
 QC5_FILE = "HapMap_3_r3_10"
 QC6_FILE = "HapMap_3_r3_12"
-
 QC5_PRUNED_VARIANTS_FILE = "HapMap_3_r3_9.pruned"
 
 PS1_1KG_RAW_FILE = "ALL.2of4intersection.20100804.genotypes"
@@ -18,3 +17,5 @@ PS5_COVAR_PCA_FILE = "covar_pca"
 
 AA1_LOGISTIC_GWAS_FILE = "hail_gwas_logistic"
 AA1_ASSOC_GWAS_FILE = "hail_gwas_assoc"
+
+RG0_RAW_FILE = "NB_final_snp"
