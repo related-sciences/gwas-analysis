@@ -87,7 +87,7 @@ RUN apt-get update --fix-missing && \
     apt-get clean
 
 # Install depedencides for plotly-orca from https://github.com/plotly/orca/issues/150#issuecomment-519192367
-RUN apt-get install xvfb libgconf-2-4 libxss1
+RUN apt-get install -y xvfb libgconf-2-4 libxss1
 
 # Note that the installation in /opt/conda must be accessible to the login user for environment creation
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh -O ~/miniconda.sh && \

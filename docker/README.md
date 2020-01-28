@@ -15,3 +15,5 @@ docker run --user $(id -u):$(id -g) --rm -ti \
 -p 8889:8888 -p 4040:4040 \
 gwas-analysis
 ```
+
+TODO: is ```--cap-add SYS_ADMIN``` necessary for async-profiler?  Add if it fails on next run.
