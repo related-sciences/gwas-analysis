@@ -123,7 +123,7 @@ COPY plink-pipe /usr/local/bin/plink-pipe
 RUN chmod a+rx /usr/local/bin/plink-pipe
 
 # R
-RUN apt-get -y install r-base
+# RUN apt-get -y install r-base
 
 # Ammonite (for Scala 2.11)
 # https://github.com/lihaoyi/Ammonite/releases/tag/1.6.7 is last release w/ 2.11 support
