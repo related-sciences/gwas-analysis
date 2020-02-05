@@ -10,15 +10,19 @@ def getLocalSparkSession(
     enableProgress: Boolean = false, 
     keepProgress: Boolean = false, 
     enableUI: Boolean = false, 
-    shufflePartitions: Int = 1,
+    shufflePartitions: Int = 200,
     master: String = "local[*]",
-    driverHost: String = "localhost"
+    driverHost: String = "localhost",
+    broadcastTimeoutSeconds: Int = 300 
   ) = {
   NotebookSparkSession
     .builder()
     // See https://github.com/almond-sh/almond/blob/620011b6edd152a84d3ac2637d45620a8b95af02/modules/scala/almond-spark/src/main/scala/org/apache/spark/sql/almondinternals/NotebookSparkSessionBuilder.scala
     .progress(enable=enableProgress, keep=keepProgress)
+    // Default is 200; see https://spark.apache.org/docs/latest/sql-performance-tuning.html
     .config("spark.sql.shuffle.partitions", shufflePartitions)
+    // Default is 300; see https://spark.apache.org/docs/latest/sql-performance-tuning.html
+    .config("spark.sql.broadcastTimeout", broadcastTimeoutSeconds)
     .config("spark.ui.enabled", enableUI)
     .config("spark.driver.host", driverHost)
     .master(master)

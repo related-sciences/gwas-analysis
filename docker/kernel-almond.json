@@ -2,6 +2,7 @@
   "argv": [
     "java",
     "-Xss2m",
+    "-Xmx64g",
     "-jar",
     "/home/eczech/.local/share/jupyter/kernels/scala/launcher.jar",
     "--extra-repository",
