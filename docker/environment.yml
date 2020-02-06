@@ -14,9 +14,12 @@ dependencies:
 - jupyterlab=1.2.4
 - psutil=5.6.7
 - plotly-orca=1.2.1
+- dask=2.10.1
+- zarr=2.3.2
 - jupyter
 - pip
 - pip:
   - hail==0.2.30
   - nteract-scrapbook==0.3.1
   - dash-bio==0.4.5
+  - pysnptools==0.4.11

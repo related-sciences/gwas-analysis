@@ -46,6 +46,11 @@ RUN apt-get update \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
+# BLAS
+# Install for Spark to use native BLAS
+# See: https://hail.is/docs/0.2/getting_started.html#blas-and-lapack
+RUN apt-get install libatlas-base-dev 
+
 # HADOOP
 ENV HADOOP_VERSION 3.0.0
 ENV HADOOP_HOME /usr/hadoop-$HADOOP_VERSION
