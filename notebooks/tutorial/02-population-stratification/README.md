@@ -29,3 +29,13 @@ Hail 1KG Data: https://console.cloud.google.com/storage/browser/hail-datasets/10
     cts.group_by(cts.n).aggregate(nn=hl.agg.count()).show()
     # shows 1 -> 25488488
     ```
+    
+### Liftover Notes
+
+To get a reference genome for hg18:
+
+- Download ```chromFa.zip``` from http://hgdownload.cse.ucsc.edu/goldenPath/hg18/bigZips/chromFa.zip
+- See notes and other downloads at same location: http://hgdownload.cse.ucsc.edu/goldenpath/hg18/chromosomes/
+- Unzip and run ```rm *_random*``` to delete ```chrN_random.fa``` files
+    - "The chrN_random.fa files contain clones that are not yet finished or cannot be placed with certainty at a specific place on the chromosome"
+- Concatenate all the per-chromosome files together: ```cat chr*.fa > hg18.fa```
