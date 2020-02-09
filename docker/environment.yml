@@ -23,3 +23,4 @@ dependencies:
   - nteract-scrapbook==0.3.1
   - dash-bio==0.4.5
   - pysnptools==0.4.11
+  - xlrd==1.2.0
