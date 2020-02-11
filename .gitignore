@@ -5,3 +5,4 @@ plink.*
 prefix.*
 benchmarks/
 dask-worker-space/
+.idea/
