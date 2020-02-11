@@ -10,6 +10,7 @@ def getLocalSparkSession(
     enableProgress: Boolean = false, 
     keepProgress: Boolean = false, 
     enableUI: Boolean = false, 
+    uiPort: Int = 4040,
     shufflePartitions: Int = 200,
     master: String = "local[*]",
     driverHost: String = "localhost",
@@ -24,6 +25,7 @@ def getLocalSparkSession(
     // Default is 300; see https://spark.apache.org/docs/latest/sql-performance-tuning.html
     .config("spark.sql.broadcastTimeout", broadcastTimeoutSeconds)
     .config("spark.ui.enabled", enableUI)
+    .config("spark.ui.port", uiPort)
     .config("spark.driver.host", driverHost)
     .master(master)
     .getOrCreate()
