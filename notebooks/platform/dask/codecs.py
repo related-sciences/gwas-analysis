@@ -8,6 +8,7 @@ from numcodecs.registry import register_codec
         
 # See: https://github.com/zarr-developers/numcodecs/blob/master/numcodecs/packbits.py
 class PackGeneticBits(PackBits):
+    """Custom Zarr plugin for encoding allele counts as 2 bit integers"""
 
     codec_id = 'packgeneticbits'
 

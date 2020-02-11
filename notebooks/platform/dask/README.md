@@ -4,9 +4,9 @@ The [Dask Prototype](prototype.ipynb) notebook in this directory demonstrates th
 
 This particular workflow step involves nothing more than sequential applications of row and column mean calculations, followed by appropriate filtering.  On 1000 Genomes data, a 16G ```25488488 x 629``` matrix (when modeled as uint8 alternate allele counts), this step takes ~16m with Hail and ~1h25m with Glow.  It takes only 35 seconds with Dask, which is nearly identical to the time taken by PLINK (albeit on 16 cores instead of 1).
 
-This prototype involves two core pieces of functionality:
+This prototype involves two pieces of custom functionality:
 
-- A PLINK file reader with support for slicing/file seeks provided by [pysnptools](https://github.com/fastlmm/pysnptools) (see [pysnptools.ipynb](pysnptools.ipynb))
+- A PLINK file reader with support for slicing/file seeks provided by [pysnptools](https://github.com/fastlmm/pysnptools)
 - A Zarr codec that implements the same bitpacking scheme as the PLINK [.bed](https://www.cog-genomics.org/plink/1.9/formats#bed) format (see [codecs.py](codecs.py))
 
 Notably, the 3.8G PLINK bed file used in this prototype compresses to 1.4G using Zarr (w/ bitpacking and default Blosc/LZ4 codec).
