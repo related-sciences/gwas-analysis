@@ -24,3 +24,4 @@ dependencies:
   - dash-bio==0.4.5
   - pysnptools==0.4.11
   - xlrd==1.2.0
+  - python-dotenv==0.11.0

@@ -1,33 +1,9 @@
 ## GWAS Analysis
 
-### Setup
+GWAS analysis tutorials with comparisons across organisms and genetic data analysis platforms.
 
-Hail setup test in python notebook:
+Contents:
 
-import hail as hl
-mt = hl.balding_nichols_model(n_populations=3, n_samples=50, n_variants=100)
-mt.count()
-
-
-Glow test in Almond:
-
-```scala
-import $ivy.`org.apache.spark::spark-sql:2.4.4`
-import $ivy.`sh.almond::almond-spark:0.6.0`
-import $ivy.`io.projectglow::glow:0.2.0`
-import io.projectglow.Glow
-import org.apache.spark.sql._
-import org.apache.spark.sql.functions._
-val ss = {
-  NotebookSparkSession
-    .builder()
-    .config("spark.sql.shuffle.partitions", "1")
-    .config("spark.ui.enabled", "false")
-    .config("spark.driver.host", "localhost")
-    .master("local[*]")
-    .getOrCreate()
-}
-import ss.implicits._
-Glow.register(ss)
-df = ss.read.format("plink").load("/home/eczech/data/1_QC_GWAS/HapMap_3_r3_1.bed")
-```
+- [notebooks/tutorial](notebooks/tutorial): Implementations of the GWAS tutorial in [Marees et al. 2018](https://www.ncbi.nlm.nih.gov/pubmed/29484742) in [Glow](https://projectglow.io/), [Hail](https://hail.is/), and [PLINK](https://www.cog-genomics.org/plink2/)
+- [notebooks/organism](notebooks/organism): Experiments with non-human diploid organisms (e.g. rice and dog)
+- [notebooks/platform](notebooks/platform): Prototype genetic analysis systems using distributed/out-of-core data processing libraries (e.g. dask)

@@ -49,7 +49,7 @@ RUN apt-get update \
 # BLAS
 # Install for Spark to use native BLAS
 # See: https://hail.is/docs/0.2/getting_started.html#blas-and-lapack
-RUN apt-get install libatlas-base-dev 
+RUN apt-get install libatlas-base-dev
 
 # HADOOP
 ENV HADOOP_VERSION 3.0.0
@@ -182,6 +182,9 @@ COPY kernel-almond.json /home/$USERNAME/.local/share/jupyter/kernels/scala/kerne
 WORKDIR /home/$USERNAME
 RUN mkdir repos data
 
+# Add project source directory to hail env
+RUN echo "/home/$USERNAME/repos/gwas-analysis/src/python" > /opt/conda/envs/hail/lib/python3.7/site-packages/local.pth
+
 # Ensure that jupyter defaults to bash shell
 ENV SHELL /bin/bash
-CMD /bin/bash -c "jupyter lab --allow-root --ip=0.0.0.0"
+CMD /bin/bash -c "jupyter lab --allow-root --ip=0.0.0.0 --ContentsManager.allow_hidden=True"

@@ -1,1 +1,0 @@
-import $ivy.`org.plotly-scala::plotly-almond:0.7.0`
