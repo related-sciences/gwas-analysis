@@ -15,3 +15,6 @@ def get_fam(data_dir, data_file):
     return pd.read_csv(
         osp.join(data_dir, data_file + '.fam'), sep='\s+', header=None, 
         names=['fid', 'iid', 'iid_paternal', 'iid_maternal', 'sex', 'pheno'])
+
+def get_breed(df_ref_fam):
+    return df_ref_fam['fid'].str.split('[-_]').str[0]
