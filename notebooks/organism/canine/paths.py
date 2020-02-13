@@ -1,3 +1,6 @@
+import os.path as osp
+WORK_DIR = osp.expanduser('~/data/gwas/tmp/canine')
+
 PLINK_FILE_TGT = 'cornell_canine'
 PLINK_FILE_REF = 'All_Pure_150k'
 REF_GENOME_FILE = 'data/reference_genome.json'
