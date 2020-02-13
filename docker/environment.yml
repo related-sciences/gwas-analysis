@@ -19,7 +19,7 @@ dependencies:
 - jupyter
 - pip
 - pip:
-  - hail==0.2.30
+  - hail==0.2.32
   - nteract-scrapbook==0.3.1
   - dash-bio==0.4.5
   - pysnptools==0.4.11

@@ -40,6 +40,7 @@ Below is an outline of the UKBB QC and analysis process (taken from this [supple
             - Filter the original reference data to the filtered variant set
             - Run LD pruning
             - Remove C/G and A/T SNPs
+            - Exclude SNPs with high PCA loadings?  It's unclear what "after an initial PCA" means.
             - Align the (now fairly small) set of reference variants to the target variants
                 - This step is missing in the UKBB analysis because presumably, the 1KG data and the UKBB data are already aligned to GRCh38
                 - This will involve joining variants by locus and resolving strand/allele flips
@@ -77,6 +78,13 @@ two alleles of the SNPs are complementary (A/T or C/G), the true strand remains 
         - [Genotype harmonizer: automatic strand alignment and format conversion for genotype data integration](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4307387/)
             > However, there are two major challenges to be resolved: ... 2) the ambiguous A/T and G/C single nucleotide polymorphisms (SNPs) for which the strand is not obvious. For many statistical analyses, such as meta-analyses of GWAS and genotype imputation, it is vital that the datasets to be used are aligned to the same genomic strand.
         - [Is ‘forward’ the same as ‘plus’?… and other adventures in SNP allele nomenclature](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6099125/)
+- bigsnpr/bigstatsr
+    - In trying to understand how the loadings plots were generated in https://privefl.github.io/bigsnpr/articles/how-to-PCA.html, I found these useful source links:
+        - loadings plot function: https://github.com/privefl/bigstatsr/blob/810347dfdbc7b625f0c2907e45e111764c47da8c/R/plot.R#L158
+        - big_randomSVD: https://github.com/privefl/bigstatsr/blob/master/R/randomSVD.R#L189
+        - what big_randomSVD calls: https://github.com/privefl/bigstatsr/blob/master/R/randomSVD.R#L105
+        - where big_SVD class is defined: https://github.com/privefl/bigstatsr/blob/c859ad28d9c6f8c8cc365c3315e3abbb81e128a8/R/SVD.R#L92
+    - Ultimately though that code (in plot.R) doesn't seem to make sense so we'll wait on https://github.com/privefl/bigstatsr/issues/100 to see how to emulate them
 
 #### Canine Datasets
 
