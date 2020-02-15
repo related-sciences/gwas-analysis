@@ -40,56 +40,32 @@ Below is an outline of the UKBB QC and analysis process (taken from this [supple
             - Filter the original reference data to the filtered variant set
             - Run LD pruning
             - Remove C/G and A/T SNPs
-            - Exclude SNPs with high PCA loadings?  It's unclear what "after an initial PCA" means.
+            - Exclude SNPs with high PCA loadings
+                - This appears to mean that after running PCA, peaks are identified in loadings and then removed manually before running another round of PCA
             - Align the (now fairly small) set of reference variants to the target variants
                 - This step is missing in the UKBB analysis because presumably, the 1KG data and the UKBB data are already aligned to GRCh38
                 - This will involve joining variants by locus and resolving strand/allele flips
                 - This will result in a merged target + reference dataset that contains **exactly** the same variants (it is crucial that the reference data PCA include only variants that are going to be present in the target dataset to be projected)
             - Run PCA on the merged dataset filtered to reference samples
+            - Investigate high loadings
+            - Potentially re-run PCA if SNPs need to be removed
+                - i.e. take a guess at what this means "Excluded SNPs in several regions with high PCA loadings (after an initial PCA)."
             - Project all target samples onto the reference PCA space
+                - The 1KG data is necessary to create PCs from a well QC'd sample (and then project the target data onto it)
+                - You could just use PCA to cluster the original dataset, but you would not know which samples are from which superpopulation
             - Select target samples in the neighborhood of homogeneous labeled populations (in the reference set)
             - For each of the target sample groupings, run HWE and MAF filtering on all target variants
             - Identify variants that pass filters in all populations
             - Subset the original target dataset to only variants passing all filters
             - **Output**: A version of the original target dataset with fewer variants
             
-            
-#### Notes
-
-- Hail
-    - Projecting samples using pre-computed PCs
-        - Hail does not have this but McArthur lab has examples (see [discourse post](https://discuss.hail.is/t/pca-to-output-allele-frequencies-alongside-loadings/439/6) and linked [code](https://github.com/macarthur-lab/gnomad_hail/blob/537cb9dd19c4a854a9ec7f29e552129081598399/utils/generic.py#L105))
-- C/G and A/T SNPs
-    - This QC step is common because the probe sequence on genotyping arrays is not specific to a reference genome, by design.  This means that the genotyping data can tell you that an "A" nucleotide was present at a locus but it doesn't actually know if this nucleotide represents some kind of "variant" with respect to a larger population.  The probes are chosen such that they capture individual sites of common variation but deciding which nucleotides comprise heterozygous, homozygous ref, homozygous alt genotypes (i.e. make a call) is up to the user.  For any given site, the arrays capture multiple individual nucleotides so one way to do this independent of a reference genome, for a single dataset, is to simply assume that whatever nucleotide is less common is the minor (aka alternate) allele and the other is the major (aka reference) allele.  This is an acceptable (and very common) method for analyzing a single dataset but causes obvious problems when trying to compare calls for the same variants between datasets (a nucleotide may have been the alternate in one and reference in the other).  Two strategies for making datasets comparable then are:  
-        1. For each dataset, use knowledge of the probe sequences to determine what strand each nucleotide is on.  This appears to be the only completely unambiguous way to ensure that all calls correspond to the same reference and alternate nucleotides.
-        2. Use the fact that the SNP arrays at least tell you which nucleotides were measured for each locus to infer, in a fairly quick and dirty way, which strand the probes measured in each dataset.  Here are some examples to make this more clear.  Let Dataset 1 = D1 and Dataset 2 = D2 in each of these and assume each determine major/minor aka ref/alt alleles based on frequency (where "AC" implies A was designated as the major allele and C as the minor):
-            - **Example 1 (AC vs CA)**: D1 says a variant has A as the major allele and C as the minor allele.  D2 says C is major and A is minor
-                - Correction: For all calls in D2 for this variant, switch the homozygous/heterozygous interpretation (presumably the C allele was more common in D2 but not D1)
-            - **Example 2 (AC vs TG)**: D1 says variant has A = major, C = minor and D2 says T = major, G = minor
-                - Correction: Nothing for the calls.  The probes in this case were for different strands but ultimately captured the same nucleotides (since A is complementary with T and C with G) AND assumed the same major/minor relationship.  The allele nucleotides in D2 should be complemented so that the variant is known as AC, but that's it.
-            - **Example 3 (AC vs GT)**
-                - Correction: As a combination of example 1 and 2, the call interpretation and allele nucleotides should both be swapped in D2 to align with D1.
-            - **Example 4 (AT vs TA)**
-                - This is where things get tricky.  In example 2, we knew that the probes measured different strands simply because A or C nucleotides would be on one strand while T and G nucleotides would be on the other.  This definitive knowledge of a strand swap is key.  In the AT vs TA case, it could be that the probe measured different strands or it could be that the same strand was used but alleles occurred at different frequencies in both datasets.  We could now say something like, "If the A allele has a frequency of 5% in D1 and it has a frequency of ~5% in D2, then we can safely assume that the same strand was used for the probe".  This, however, becomes problematic as the allele frequencies 50%.  The same is true for cases like CG vs GC or even AT vs AT -- you simply can't tell which strand the probes corresponded too without knowledge of the probe seqeuences.  These sequences could be compared between the two datasets to determine if they were for the same strand, but they appear to be difficult to come by.  This is the main reason why many analyses simply through out A/T and C/G SNPs.
-    - Here are some helpful discussions/papers on why this step is necessary (and on strand ambiguity in general):
-        - [StrandScript: evaluation of Illumina genotyping array design and strand correction](https://www.ncbi.nlm.nih.gov/pubmed/28402386)
-            > Additionally, the strand issue can be resolved by comparing the alleles to a reference genome. Yet, when
-two alleles of the SNPs are complementary (A/T or C/G), the true strand remains undetermined. The only absolute solution to determine the strand is to compare the probe sequences to a reference genome, providing the probe sequences is correct
-        - [Genotype harmonizer: automatic strand alignment and format conversion for genotype data integration](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4307387/)
-            > However, there are two major challenges to be resolved: ... 2) the ambiguous A/T and G/C single nucleotide polymorphisms (SNPs) for which the strand is not obvious. For many statistical analyses, such as meta-analyses of GWAS and genotype imputation, it is vital that the datasets to be used are aligned to the same genomic strand.
-        - [Is ‘forward’ the same as ‘plus’?… and other adventures in SNP allele nomenclature](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6099125/)
-- bigsnpr/bigstatsr
-    - In trying to understand how the loadings plots were generated in https://privefl.github.io/bigsnpr/articles/how-to-PCA.html, I found these useful source links:
-        - loadings plot function: https://github.com/privefl/bigstatsr/blob/810347dfdbc7b625f0c2907e45e111764c47da8c/R/plot.R#L158
-        - big_randomSVD: https://github.com/privefl/bigstatsr/blob/master/R/randomSVD.R#L189
-        - what big_randomSVD calls: https://github.com/privefl/bigstatsr/blob/master/R/randomSVD.R#L105
-        - where big_SVD class is defined: https://github.com/privefl/bigstatsr/blob/c859ad28d9c6f8c8cc365c3315e3abbb81e128a8/R/SVD.R#L92
-    - Ultimately though that code (in plot.R) doesn't seem to make sense so we'll wait on https://github.com/privefl/bigstatsr/issues/100 to see how to emulate them
-
 #### Canine Datasets
 
 - Reference Dataset
     - The NHGRI Dog Genome Project
+    - In [genome summary](https://research.nhgri.nih.gov/dog_genome/canine_genome.shtml) page, this is cited as original dog genome publication: [Genome sequence, comparative analysis and haplotype structure of the domestic dog](https://www.ncbi.nlm.nih.gov/pubmed/16341006)
+        - A single female boxer was used to generate draft genome sequence
+        - A table of contig sizes is available in the [supplementary notes](https://static-content.springer.com/esm/art%3A10.1038%2Fnature04338/MediaObjects/41586_2005_BFnature04338_MOESM2_ESM.pdf) (Section B: CanFam2.0)
     - https://research.nhgri.nih.gov/dog_genome/data_release/index.shtml
     - [Genomic Analyses Reveal the Influence of Geographic Origin, Migration, and Hybridization on Modern Dog Breed Development](https://www.sciencedirect.com/science/article/pii/S2211124717304564?via%3Dihub)
         - Parker et al. 2017 (last author Elaine Ostrander)
@@ -111,3 +87,20 @@ two alleles of the SNPs are complementary (A/T or C/G), the true strand remains 
         - Hayward et al. 2016 (last author Boyko)
         - Sample size:
         > Here we undertake the largest canine genome-wide association study to date, with a panel of over 4,200 dogs genotyped at 180,000 markers
+        - Calls:
+            - PLINK data sets were generated in GenomeStudio using the PLINK report plugin. 
+            - Genotypes were called using a GenCall threshold of 0.15 using cluster positions that were computed for the first 30 plates
+        - SNP QC:
+            - In PLINK v1.07 (ref. 51), SNPs with a genotyping rate below 95% were removed. 
+            - Duplicate samples were merged and discordant SNPs between the duplicates were identified and removed. 
+            - SNPs with a MAF over 2% were tested for unexpected deviations from Hardy–Weinberg equilibrium. Specifically, SNPs with heterozygosity ratios (observed versus expected number of heterozygotes under Hardy–Weinberg equilibrium) below 0.25 or above 1.0 were identified and removed. 
+            - Furthermore, all Y chromosome and mitochondrial DNA SNPs with any heterozygous genotype calls were removed. 
+            - In total, 180,117 SNPs remained after filtering, with an overall call rate of >99.8%. The concordance rate between 44 technical replicates was 99.99%.
+        - Sample QC:
+            - Samples with >10% missing genotypes or with recorded sex not matching genotypic sex were excluded from further analysis. 
+            - Genotypic sex was computed by calculating (1) the proportion of missing Y chromosome genotypes (<50% in males, >50% in females) and (2) the homozygosity across non-PAR X chromosome markers using the PLINK --check-sex option (generally <60% in females, >60% in males). In this manner, XXY samples were not misidentified as females and females with highly inbred X chromosomes were not misidentified as males. 
+            - To check the recorded breed of our samples, we used the PLINK --genome option to check that each individual is most closely related to other individuals of the same breed
+            - we also ran a principal component analysis (PCA) on each breed using the program EIGENSTRAT in the EIGENSOFT v5.0.1 package52 to identify any outliers. Dogs with recorded breed not matching the genotypic breed were excluded from further analysis.
+        - On phenotypes:
+            - Body size 
+            > Using an additive linear model where we corrected for both inbreeding and sex of the dog (see Methods), we confirm that dog body size has a simple underlying genetic architecture3,13, with the identified 17 QTLs explaining 80–88% of the variation of weight and height in individual purebred dogs
