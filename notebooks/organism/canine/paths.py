@@ -9,4 +9,5 @@ REF_BREED_INFO_FILE = '1-s2.0-S2211124717304564-mmc2.xlsx'
 # Reference data QC
 REF_QC_02_FILE = 'mt_ref_qc_02'
 REF_QC_03_FILE = 'mt_ref_qc_03'
+TGT_QC_04_FILE = 'ht_tgt_qc_04'
 

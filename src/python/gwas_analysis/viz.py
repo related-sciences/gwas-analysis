@@ -31,6 +31,7 @@ def display_image_grid(images, n_rows, n_cols):
     plt.subplots_adjust(wspace=0, hspace=0, left=0, right=1, bottom=0, top=1)
 
 
-def display_figure_grid(figures, n_rows, n_cols):
-    from plotly.subplots import make_subplots
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=[f'PC{pc + 1} Loadings' for pc in range(n_pcs)])
+def display_figure_grid(figures, n_rows, n_cols, fig_width=None, fig_height=None, img_format='png'):
+    images = [f.to_image(img_format, width=fig_width, height=fig_height) for f in figures]
+    images = list(map(png_bytes_to_numpy, images))
+    return display_image_grid(images, n_rows, n_cols)

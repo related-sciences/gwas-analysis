@@ -22,6 +22,7 @@ def get_loadings_traces(df, nbins=96):
 
 
 def get_loadings_fig(df, nbins=72, n_pcs=10, n_rows=2, n_cols=5):
+    """Created faceted loadings plot for each principal component"""
     traces = get_loadings_traces(df, nbins=nbins)
     assert n_pcs <= n_rows * n_cols
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=[f'PC{pc + 1} Loadings' for pc in range(n_pcs)])
@@ -30,8 +31,8 @@ def get_loadings_fig(df, nbins=72, n_pcs=10, n_rows=2, n_cols=5):
         fig.add_trace(traces[pc], row=row, col=col)
     return fig
 
-
 def get_loadings_df(ht):
     df = ht.key_by().select('loadings').to_pandas()
     df = pd.DataFrame(df['loadings'].tolist()).reset_index(drop=True)
     return df
+

@@ -6,3 +6,4 @@ prefix.*
 benchmarks/
 dask-worker-space/
 .idea/
+*.pyc
