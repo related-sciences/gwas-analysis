@@ -53,9 +53,8 @@ Below is an outline of the UKBB QC and analysis process (taken from this [supple
             - Project all target samples onto the reference PCA space
                 - The 1KG data is necessary to create PCs from a well QC'd sample (and then project the target data onto it)
                 - You could just use PCA to cluster the original dataset, but you would not know which samples are from which superpopulation
-            - Select target samples in the neighborhood of homogeneous labeled populations (in the reference set)
-            - For each of the target sample groupings, run HWE and MAF filtering on all target variants
-            - Identify variants that pass filters in all populations
+            - Select target samples in the neighborhood of a homogeneous labeled population (Boxers in the reference data)
+            - Run HWE filtering on all target variants in the selected sample
             - Subset the original target dataset to only variants passing all filters
             - **Output**: A version of the original target dataset with fewer variants
             
