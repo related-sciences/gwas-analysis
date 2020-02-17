@@ -35,28 +35,31 @@ Below is an outline of the UKBB QC and analysis process (taken from this [supple
                     > Specifically, we tested for batch effects, plate effects, departures from Hardy-Weinberg equilibrium (HWE), sex effects, array effects, and discordance across control replicates.  All tests (except for discordance across controls) were applied using the genotype calls for a set of 463,844 ancestrally homogeneous individuals (see Section S 2.2). 
     - Canine Variant QC
         - Our adpated version of this QC process will look like this:
-            - Group the NHGRI Dog Genome (i.e. "reference") samples by the 3 most common breeds
-            - Run MAF and HWE filtering on all variants for each breed separately, and identify variants that pass all filters in all breeds
-            - Filter the original reference data to the filtered variant set
-            - Run LD pruning
-            - Remove C/G and A/T SNPs
-            - Exclude SNPs with high PCA loadings
-                - This appears to mean that after running PCA, peaks are identified in loadings and then removed manually before running another round of PCA
-            - Align the (now fairly small) set of reference variants to the target variants
-                - This step is missing in the UKBB analysis because presumably, the 1KG data and the UKBB data are already aligned to GRCh38
-                - This will involve joining variants by locus and resolving strand/allele flips
-                - This will result in a merged target + reference dataset that contains **exactly** the same variants (it is crucial that the reference data PCA include only variants that are going to be present in the target dataset to be projected)
-            - Run PCA on the merged dataset filtered to reference samples
-            - Investigate high loadings
-            - Potentially re-run PCA if SNPs need to be removed
-                - i.e. take a guess at what this means "Excluded SNPs in several regions with high PCA loadings (after an initial PCA)."
-            - Project all target samples onto the reference PCA space
-                - The 1KG data is necessary to create PCs from a well QC'd sample (and then project the target data onto it)
-                - You could just use PCA to cluster the original dataset, but you would not know which samples are from which superpopulation
-            - Select target samples in the neighborhood of a homogeneous labeled population (Boxers in the reference data)
-            - Run HWE filtering on all target variants in the selected sample
-            - Subset the original target dataset to only variants passing all filters
-            - **Output**: A version of the original target dataset with fewer variants
+            - Variant QC 
+                - Group the NHGRI Dog Genome (i.e. "reference") samples by the 3 most common breeds
+                - Run MAF and HWE filtering on all variants for each breed separately, and identify variants that pass all filters in all breeds
+                - Filter the original reference data to the filtered variant set
+                - Run LD pruning
+                - Remove C/G and A/T SNPs
+                - Exclude SNPs with high PCA loadings
+                    - This appears to mean that after running PCA, peaks are identified in loadings and then removed manually before running another round of PCA
+                - Align the (now fairly small) set of reference variants to the target variants
+                    - This step is missing in the UKBB analysis because presumably, the 1KG data and the UKBB data are already aligned to GRCh38
+                    - This will involve joining variants by locus and resolving strand/allele flips
+                    - This will result in a merged target + reference dataset that contains **exactly** the same variants (it is crucial that the reference data PCA include only variants that are going to be present in the target dataset to be projected)
+                - Run PCA on the merged dataset filtered to reference samples
+                - Investigate high loadings
+                - Potentially re-run PCA if SNPs need to be removed
+                    - i.e. take a guess at what this means "Excluded SNPs in several regions with high PCA loadings (after an initial PCA)."
+                - Project all target samples onto the reference PCA space
+                    - The 1KG data is necessary to create PCs from a well QC'd sample (and then project the target data onto it)
+                    - You could just use PCA to cluster the original dataset, but you would not know which samples are from which superpopulation
+                - Select target samples in the neighborhood of a homogeneous labeled population (Boxers in the reference data)
+                - Run HWE filtering on all target variants in the selected sample
+                - Subset the original target dataset to only variants passing all filters
+                - **Output**: A version of the original target dataset with fewer variants
+            - Sample QC
+                - 
             
 #### Canine Datasets
 
