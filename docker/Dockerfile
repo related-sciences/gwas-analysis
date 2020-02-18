@@ -188,6 +188,11 @@ RUN mkdir repos data
 # Add project source directory to hail env
 RUN echo "/home/$USERNAME/repos/gwas-analysis/src/python" > /opt/conda/envs/hail/lib/python3.7/site-packages/local.pth
 
+# Add helpful environment variables
+ENV DATA_DIR /home/$USERNAME/data
+ENV REPO_DIR /home/$USERNAME/repos/gwas-analysis
+ENV NB_DIR $REPO_DIR/notebooks
+
 # Ensure that jupyter defaults to bash shell
 ENV SHELL /bin/bash
 CMD /bin/bash -c "jupyter lab --allow-root --ip=0.0.0.0 --ContentsManager.allow_hidden=True"
