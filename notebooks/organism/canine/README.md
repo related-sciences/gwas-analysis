@@ -58,8 +58,8 @@ Below is an outline of the UKBB QC and analysis process (taken from this [supple
                 - Run HWE filtering on all target variants in the selected sample
                 - Subset the original target dataset to only variants passing all filters
                 - **Output**: A version of the original target dataset with fewer variants
-            - Sample QC
-                - 
+    -  Canine Sample QC
+        - See [Sams and Boyko 2019](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6325901/) for a reference on using very high IBD threshold of .45 to eliminate related pairs
             
 #### Canine Datasets
 
@@ -106,3 +106,22 @@ Below is an outline of the UKBB QC and analysis process (taken from this [supple
         - On phenotypes:
             - Body size 
             > Using an additive linear model where we corrected for both inbreeding and sex of the dog (see Methods), we confirm that dog body size has a simple underlying genetic architecture3,13, with the identified 17 QTLs explaining 80–88% of the variation of weight and height in individual purebred dogs
+            
+#### Plotly
+
+To restart the Orca server if it dies:
+
+```
+import plotly.io as pio
+pio.orca.shutdown_server() # Then rerun plots
+```
+
+To add a vertical line annotation:
+
+```
+x_intercept = .5
+fig.add_shape(dict(
+    type="line", xref="x", yref="paper",
+    x0=x_intercept, y0=0, x1=x_intercept, y1=1
+))
+```
