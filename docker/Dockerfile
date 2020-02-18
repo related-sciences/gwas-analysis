@@ -49,7 +49,7 @@ RUN apt-get update \
 # BLAS
 # Install for Spark to use native BLAS
 # See: https://hail.is/docs/0.2/getting_started.html#blas-and-lapack
-RUN apt-get install libatlas-base-dev
+RUN apt-get update && apt-get install -y libatlas-base-dev
 
 # HADOOP
 ENV HADOOP_VERSION 3.0.0
@@ -93,6 +93,9 @@ RUN apt-get update --fix-missing && \
 
 # Install depedencides for plotly-orca from https://github.com/plotly/orca/issues/150#issuecomment-519192367
 RUN apt-get install -y xvfb libgconf-2-4 libxss1
+
+# Install dependencies for pysnptools
+RUN apt-get install -y g++
 
 # Note that the installation in /opt/conda must be accessible to the login user for environment creation
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh -O ~/miniconda.sh && \
