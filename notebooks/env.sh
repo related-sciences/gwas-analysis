@@ -1,4 +1,5 @@
 # NB_DIR=${HOME}/repos/gwas-analysis/notebooks # This should be set globally
+NB_DIR=${NB_DIR}
 TUTORIAL_DIR=${NB_DIR}/tutorial
 BENCHMARK_DIR=${NB_DIR}/benchmark
 BENCHMARK_METHOD_DIR=${NB_DIR}/benchmark/method

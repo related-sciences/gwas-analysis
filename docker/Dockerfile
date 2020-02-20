@@ -159,6 +159,10 @@ RUN conda env create -f environment.yml
 RUN conda init bash
 RUN echo "conda activate hail" >> ~/.bashrc
 ENV PATH /opt/conda/envs/hail/bin:$PATH
+# For whatever reason, the dask package from conda-force ends
+# up being incompatible (multiprocessing scheduler doesn't work)
+# but it is fine when installed after the main environment
+RUN pip install dask[complete]==2.11.0
 
 # Jupyter Extensions
 RUN conda install -c conda-forge jupyter_contrib_nbextensions && \
@@ -192,6 +196,15 @@ RUN echo "/home/$USERNAME/repos/gwas-analysis/src/python" > /opt/conda/envs/hail
 ENV DATA_DIR /home/$USERNAME/data
 ENV REPO_DIR /home/$USERNAME/repos/gwas-analysis
 ENV NB_DIR $REPO_DIR/notebooks
+
+# Avoid thread oversubscription for system BLAS
+# See: https://docs.dask.org/en/latest/array-best-practices.html
+ENV OMP_NUM_THREADS=1
+ENV MKL_NUM_THREADS=1
+ENV OPENBLAS_NUM_THREADS=1
+
+# Ensure reproducibility for python dict hashing 
+ENV PYTHONHASHSEED=0
 
 # Ensure that jupyter defaults to bash shell
 ENV SHELL /bin/bash

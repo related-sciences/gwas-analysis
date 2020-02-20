@@ -9,5 +9,13 @@ import gwas_analysis.benchmark as gab
 for k, v in dotenv_values(find_dotenv('env.sh')).items():
     globals()[k] = v
 
+# Very common helper functions
+
+def hail_init():
+    import hail as hl
+    import gwas_analysis.reference_genome as garg
+    hl.init()
+    garg.load_all(hl)
+    
 def plink_files(dir_name, file_name):
     return [osp.join(dir_name, file_name + ext) for ext in ['.bed', '.bim', '.fam']]
