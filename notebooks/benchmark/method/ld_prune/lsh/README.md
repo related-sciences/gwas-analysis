@@ -8,3 +8,5 @@ The purpose of this experiment is to evaluate how well a simple LSH scheme can a
 4. Evaluate precision and recall of pairwise LD recognition by hash collision as a function of:
     - The number of random projections used in the hash
     - The LD threshold defining the ground truth links
+
+The hashing approach applied here is based largely on [Shared Nearest Neighbor Clustering in a Locality Sensitive Hashing Framework](https://www.ncbi.nlm.nih.gov/pubmed/28953425), which details a method for clustering genomic sequence data.
