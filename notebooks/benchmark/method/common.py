@@ -11,8 +11,9 @@ DATASET_CONFIG = {
     DATASET_HM: dict(path=HAPMAP_PLINK_FILE, reference_genome=garg.hapmap3_hg18_rg()['name'])
 }
 
-def dataset_path(ds_name, ds_sample_rate):
-    return osp.join(TEMP_DS_DIR, ds_name + '-' + str(ds_sample_rate))
+def dataset_path(ds_name, **props):
+    filename = '-'.join([ds_name] + [f'{k}={v}' for k, v in props.items()])
+    return osp.join(TEMP_DS_DIR, filename)
 
 
 def get_dask_client(n_workers, processes=True, n_threads=1, max_mem_fraction=.9):
