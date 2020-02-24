@@ -115,6 +115,25 @@ xr.DataArray(
 
 # > Wall time: 10.3 s
 ```
+    - What is the best way to apply a function that uses coordinates and data at the same time?
+        - In this prototype, there is a step where a 2D array of hash values (num variants x num hash groups) is re-hashed with the corresponding hash group.  This should really happen in the original hashing step, but it is a good test of the capabilities in xarray.  The workaround in the prototype is to ravel the array first so that the coordinates and data elements are in the same row, but a more idealized version of this operation would work like this:
+        
+```python
+df = pd.DataFrame([
+        [1, np.array([1,2,3])],
+        [2, np.array([2,4,6])],
+        [3, np.array([3,6,9])]
+    ], 
+    columns=['i', 'v']
+)
+# Hash the coodinate data in "i" with the array data in "v"
+df.apply(lambda r: hash(np.array([r['i']] + list(r['v'])).tobytes()), axis=1)
+
+0    7657179755929837845
+1   -8831182246726751866
+2   -6185092938626418289
+dtype: int64
+```
 
 - Dask
     - Dask doesn't implement ```np.packbits``` which is at least one way to help speed up hash computations
