@@ -9,7 +9,7 @@ The purpose of this experiment is to evaluate how well a simple LSH scheme can a
     - The number of random projections used in the hash
     - The LD threshold defining the ground truth links
     
-The original outline for this process, though it is not an uncommon technique in many fields, was from [[3]].
+The original outline for this process, though it is not an uncommon technique in many fields, was from [3].
 
 ### LSH Prototype 1
 
@@ -19,13 +19,13 @@ This was a quick and dirty attempt at the following two-pass solution for pair-w
 
 - Load an matrix containing genotype calls as n alt alleles (0, 1, or 2)
 - Project this 2D matrix into a random space of lower dimension using M dimensions
-- Apply sim-hash [[2]] only to a **subset** of the $M$ dimensions 
+- Apply SimHash [2] only to a **subset** of the $M$ dimensions 
     - Convert $k << M$ dimensions into bits (based on sign)
     - Create $g$ such groups of $k$ bit vectors (where $g * k$ still $< M$)
 - Use the $g * k$ bits to form hash buckets 
     - Each variant (i.e. row) would then be assigned $g$ hash different buckets 
 - Self-join these bucket assignments by hash group and hash value in order to determine whether or not any pair of variants collides in **any** of the groups
-    - This "amplification" [[4]] for composite hashing is crucial for improving recall [[1]]
+    - This "amplification" [4] for composite hashing is crucial for improving recall [1]
     - This explodes the hash assignments (which is a matrix of length equal to number of variants) into a table containing variant pairs with high levels of approximate similarity
 - For each pair of variants in the same bucket, join to the full set of $M$ projections to estimate correlation (or distance or several other possibilities)
     - $M$ was kept as a separate paramter from those for the hash buckets so that the accuracy of the second-pass estimates could be tuned separately
@@ -55,7 +55,7 @@ This prototype never made it to the final step because both the self-join and th
 
 Notebook: [lsh-prototype-02.ipynb](misc/lsh-prototype-02.ipynb)
 
-Based on the first iteration, it seems unlikely that any naive approach via Dask/Xarray will work well for a two pass solution.  It doesn't really matter in the context of LD pruning though since as a result of [[1]], it is possible to make probabilistic statements about correlation between records in a dataset purely based on hash collisions (note that LD = pearson correlation = cosine similarity).  In other words, the number of signed hashes and the number of compositions of those hashes (the two parameters necessary) determine the probability that two records with a correlation above a certain value are detected via collision.  The dot product and therefore correlation is preserved under random projection [[5, 6]] and the relationship in [[1]] is summarized nicely in this [presentation](https://chanzuckerberg.github.io/ExpressionMatrix2/doc/LshSlides-Nov2017.pdf). This gives a formula that could be used to create an interface where an R2 threshold for LD pruning is given as well as some sense of "approximateness" around that threshold (it may have to be informed by pair-wise R2 distributions in real datasets), and then the actual random projection dimension and hash group counts become a function of those parameters. 
+Based on the first iteration, it seems unlikely that any naive approach via Dask/Xarray will work well for a two pass solution.  It doesn't really matter in the context of LD pruning though since as a result of [1], it is possible to make probabilistic statements about correlation between records in a dataset purely based on hash collisions (note that LD = pearson correlation = cosine similarity).  In other words, the number of signed hashes and the number of compositions of those hashes (the two parameters necessary) determine the probability that two records with a correlation above a certain value are detected via collision.  The dot product and therefore correlation is preserved under random projection [5, 6] and the relationship in [1] is summarized nicely in this [presentation](https://chanzuckerberg.github.io/ExpressionMatrix2/doc/LshSlides-Nov2017.pdf). This gives a formula that could be used to create an interface where an R2 threshold for LD pruning is given as well as some sense of "approximateness" around that threshold (it may have to be informed by pair-wise R2 distributions in real datasets), and then the actual random projection dimension and hash group counts become a function of those parameters. 
 
 The expected relationship between composite hash parameters and collision probabilities is summarized below with a few examples:
 
@@ -141,11 +141,11 @@ xr.DataArray(
         
 #### References
 
-- [[1]] - [Hashing for Similarity Search: A Survey (Wang et al. 2014)](https://arxiv.org/pdf/1408.2927.pdf)
-- [[2]] - [Similarity Estimation Techniques from Rounding Algorithms (Charikar 2002)](https://www.cs.princeton.edu/courses/archive/spr04/cos598B/bib/CharikarEstim.pdf)
+- [1] - [Hashing for Similarity Search: A Survey (Wang et al. 2014)](https://arxiv.org/pdf/1408.2927.pdf)
+- [2] - [Similarity Estimation Techniques from Rounding Algorithms (Charikar 2002)](https://www.cs.princeton.edu/courses/archive/spr04/cos598B/bib/CharikarEstim.pdf)
     - This is the original simhash paper 
-- [[3]] - [Shared Nearest Neighbor Clustering in a Locality Sensitive Hashing Framework](https://www.ncbi.nlm.nih.gov/pubmed/28953425)
+- [3] - [Shared Nearest Neighbor Clustering in a Locality Sensitive Hashing Framework](https://www.ncbi.nlm.nih.gov/pubmed/28953425)
     - This is a good example of random projection hashing applied to genomic sequence similarity pipelines
-- [[4]] - [Mining of Massive Datasets, Ch. 3](http://infolab.stanford.edu/~ullman/mmds.html)
-- [[5]] - [Improved Bounds on the Dot Product under Random Projection and Random Sign Projection (Kabán 2015)](https://www.cs.bham.ac.uk/~axk/fp621-kaban.pdf) 
-- [[6]] - [Random Projection-based Multiplicative Data Perturbation for Privacy Preserving Distributed Data Mining (Liu et al. 2005)](https://www.csee.umbc.edu/~hillol/PUBS/mult_noise_privacyDM.pdf)
+- [4] - [Mining of Massive Datasets, Ch. 3](http://infolab.stanford.edu/~ullman/mmds.html)
+- [5] - [Improved Bounds on the Dot Product under Random Projection and Random Sign Projection (Kabán 2015)](https://www.cs.bham.ac.uk/~axk/fp621-kaban.pdf) 
+- [6] - [Random Projection-based Multiplicative Data Perturbation for Privacy Preserving Distributed Data Mining (Liu et al. 2005)](https://www.csee.umbc.edu/~hillol/PUBS/mult_noise_privacyDM.pdf)
