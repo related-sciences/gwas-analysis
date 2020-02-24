@@ -10,3 +10,4 @@ TUTORIAL_3_AA_DIR=${DATA_DIR}/gwas/tutorial/3_AA_GWAS
 ORGANISM_RICE_3KG_DIR=${DATA_DIR}/gwas/rice-snpseek/3K_RG_29mio_biallelic_SNPs_Dataset
 ORGANISM_CANINE_TGT_DIR=${DATA_DIR}/gwas/canine-hayward-2016-266k4
 ORGANISM_CANINE_REF_DIR=${DATA_DIR}/gwas/canine-parker-2017
+BENCHMARK_METHOD_DATA_DIR=${DATA_DIR}/gwas/benchmark

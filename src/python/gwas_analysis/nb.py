@@ -4,6 +4,7 @@ import re
 import ipykernel
 import requests
 import os.path as osp
+import gwas_analysis
 
 #############
 # NB Identity
@@ -37,6 +38,10 @@ def get_notebook_path():
             if nn['kernel']['id'] == kernel_id:
                 relative_path = nn['notebook']['path']
                 return osp.join(ss['notebook_dir'], relative_path)
+
+
+def get_notebook_relpath(start=gwas_analysis.NB_DIR):
+    return osp.relpath(get_notebook_path(), start)
 
 
 def get_notebook_name():

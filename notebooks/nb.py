@@ -9,7 +9,7 @@ import gwas_analysis.benchmark as gab
 for k, v in dotenv_values(find_dotenv('env.sh')).items():
     globals()[k] = v
 
-# Very common helper functions
+# Common helper functions
 
 def hail_init():
     import hail as hl
