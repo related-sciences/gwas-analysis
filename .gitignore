@@ -7,3 +7,7 @@ benchmarks/
 dask-worker-space/
 .idea/
 *.pyc
+.DS_Store
+_.DS_Store
+._.DS_Store
+__pycache__

@@ -41,21 +41,7 @@ class Method(object):
         return self.module_path('renders', '')
         
 ld_prune_lsh = Method('ld-prune-lsh', 'ld_prune/lsh')
-
-# def module_path(module, fname=None, ext=None, maxdepth=2, **props):
-#     # Example: $REPO/notebooks/benchmark/method/ld_prune/lsh/04-analysis.ipynb -> ld_prune/lsh
-#     relpath = osp.dirname(osp.relpath(ganb.get_notebook_path(), ga.BENCHMARK_METHOD_DIR))
-#     if maxdepth is not None:
-#         relpath = os.sep.join(relpath.split(os.sep)[:maxdepth])
-#     fname = filename(fname or '', **props) + ('' if ext is None else '.' + ext.replace('.', ''))
-#     # Example: $DATA_DIR/gwas/benchmark/$module/ld_prune/lsh/$filename
-#     return osp.join(ga.BENCHMARK_METHOD_DATA_DIR, module, relpath, fname)
-
-# def dataset_path(ds_name, **kwargs):
-#     return module_path('datasets', ds_name, **kwargs)
-
-# def render_path(fname=None, **kwargs):
-#     return module_path('renders', fname, **kwargs)
+ld_prune_tild = Method('ld-prune-tild', 'ld_prune/tild')
 
 def hash_collision_probability(a, h, g):
     """ Compute probability of hash collision for signed random projects (aka SimHash)
