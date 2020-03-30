@@ -1,9 +1,16 @@
 ## GWAS Analysis
 
-GWAS analysis tutorials with comparisons across organisms and genetic data analysis platforms.
+GWAS analysis research with feature comparisons, benchmarks, and ports of published analyses for several genetic data analysis platforms.
 
-Contents:
+This work is primarily research for [gwas-analysis-manuscript](https://github.com/related-sciences/gwas-analysis-manuscript) (which is just stub files and some notes at this point) and here is a summary of the contents with relevant descriptions/links:
 
+- [Genomic Toolkit Comparison](https://docs.google.com/spreadsheets/d/1FPen1xGMuzc-s0y0cSHuz1RFaiGdmS1ZL8mvUROSm1E/edit?usp=sharing): This spreadsheet is not in the repo, but it provides important context for common genetic data toolkits
 - [notebooks/tutorial](notebooks/tutorial): Implementations of the GWAS tutorial in [Marees et al. 2018](https://www.ncbi.nlm.nih.gov/pubmed/29484742) in [Glow](https://projectglow.io/), [Hail](https://hail.is/), and [PLINK](https://www.cog-genomics.org/plink2/)
-- [notebooks/organism](notebooks/organism): Experiments with non-human diploid organisms (e.g. rice and dog)
-- [notebooks/platform](notebooks/platform): Prototype genetic analysis systems using distributed/out-of-core data processing libraries (e.g. dask)
+- [notebooks/organism/canine](notebooks/organism/canine): This analysis reformulates the first half of the UKBB QC process in [Bycroft et al. 2018](https://www.nature.com/articles/s41586-018-0579-z) for a canine dataset published by [Hayward et al. 2016](https://www.nature.com/articles/ncomms10460).  This analysis also uses a separate dataset from the NHGRI Dog Genome Project as an analog to the 1KG data often used in population stratification for QC (as is common with UKBB pipelines).
+- [notebooks/platform/dask](notebooks/platform/dask): This library prototype benchmarks simple GWAS QC operations using [Dask](https://dask.org/) as well as I/O with custom bit-packing and compression via [Zarr](https://zarr.readthedocs.io/en/stable/).  Dask gives large improvements on column-wise/row-wise operation times vs Hail/Glow and nearly matches the performance of PLINK on a single host (the others take at least ~5x longer).
+  - See [discuss.hail.is#1263](https://discuss.hail.is/t/poor-performance-for-qc-filtering-on-medium-sized-genotype-data/1263) for a related discussion on the Hail discourse
+  - See [projectglow#148](https://github.com/projectglow/glow/issues/148) for a related discussion on a Glow issue
+- [notebooks/benchmark/method](notebooks/benchmark/method): This directory contains implementations of genetic data processing methods implemented over Dask arrays (currently only LD pruning).  These experiments also apply locality sensitive hashing as well as an optimization using the triangle inequality to LD prune algorithms in an attempt to demonstrate representative workloads with Dask.  The latter of this is very similar to [scikit-allele.locate_unlinked](https://scikit-allel.readthedocs.io/en/stable/stats/ld.html#allel.locate_unlinked) but uses ```numba.jit``` compilation and ```dask.array.map_overlap```.
+- [notebooks/platform/xarray](notebooks/platform/xarray): This prototype library gives a specification for a top level API over genetic data structures (it is complementary to [skallel](https://github.com/scikit-allel/skallel)).  The [data_structures.ipynb](notebooks/platform/xarray/data_structures.ipynb) notebook shows example use cases for this API.
+  - See [gwas-analysis#15](https://github.com/related-sciences/gwas-analysis/issues/15) for a survey of data structures in other platforms
+  
