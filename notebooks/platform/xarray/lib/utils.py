@@ -3,6 +3,10 @@ import numpy as np
 from xarray.core.pycompat import dask_array_type
 from typing import Any, Sequence
 import inspect
+import collections.abc
+
+class ShapeError(Exception):
+    pass
 
 def is_array(data: Any) -> bool:
     # Check for duck array type (cf. https://numpy.org/neps/nep-0018-array-function-protocol.html)
@@ -22,15 +26,24 @@ def is_signature_compatible(fn, *args, **kwargs) -> bool:
     except TypeError:
         return False
     
-# TODO: Is there a type hint that will cover duck arrays (rather than Any)?
+def is_shape_match(arr, dims) -> bool:
+    for dim, size in dims.items():
+        if arr.sizes[dim] != size:
+            return False
+    return True
+    
 def check_array(cls: Any, data: Any, types: Sequence[Any] = None, dims: Sequence[str] = None) -> Any:
     if types:
+        if isinstance(types, str):
+            types = [np.dtype(types)]
+        elif not isinstance(types, collections.abc.Sequence):
+            types = [types]
         if not any([np.issubdtype(data.dtype, typ) for typ in types]):
             types = [typ.__name__ for typ in types]
             raise TypeError(f'{cls} expects data type to be one of [{types}] (not type: {data.dtype})')
     if dims:
         if data.ndim != len(dims):
-            raise ShapeError(f'{cls} expects {ndim}-dimensional data (not shape: {data.shape})')
+            raise ShapeError(f'{cls} expects {len(dims)}-dimensional data (not shape: {data.shape})')
     return data
 
 def check_domain(cls: Any, data: Any, min_value: float, max_value: float) -> Any:
@@ -39,11 +52,10 @@ def check_domain(cls: Any, data: Any, min_value: float, max_value: float) -> Any
         raise ValueError(f'{cls} expects values in range [{min_value}, {max_value}]) (not range: {rng})')
     return data
 
-def try_cast_unsigned(data: xr.DataArray, dtype: Any = np.uint8) -> xr.DataArray:
-    if np.issubdtype(data.dtype, np.signedinteger):
-        if int(data.min()) < np.iinfo(dtype).min:
-            raise ValueError(f'Integer array must be all >= {np.iinfo(dtype).min} for unsigned cast')
-        if int(data.min()) > np.iinfo(dtype).max:
-            raise ValueError(f'Integer array must be all <= {np.iinfo(dtype).max} for unsigned cast')
-        return data.astype(dtype)
-    return data
+
+def get_base_module(obj: Any) -> str:
+    # Identify base module using method in xarray core
+    # See: 
+    # - https://github.com/pydata/xarray/blob/df614b96082b38966a329b115082cd8dddf9fb29/xarray/core/common.py#L203
+    # - https://github.com/dask/dask/blob/241027d1e270c2793244d9f16e53903c5ea5bd20/dask/array/core.py#L1297
+    return type(obj).__module__.split('.')[0]

@@ -1,4 +1,4 @@
-name: hail
+name: gwas
 channels:
 - conda-forge
 - plotly
@@ -20,6 +20,7 @@ dependencies:
 - xarray=0.15.0
 - pyarrow=0.15.1
 - numba=0.48.0
+- multipledispatch=0.6.0
 - jupyter
 - pip
 - pip:

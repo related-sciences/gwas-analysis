@@ -157,8 +157,8 @@ ENV PLINK_HOME /usr/local/plink
 COPY environment.yml .
 RUN conda env create -f environment.yml
 RUN conda init bash
-RUN echo "conda activate hail" >> ~/.bashrc
-ENV PATH /opt/conda/envs/hail/bin:$PATH
+RUN echo "conda activate gwas" >> ~/.bashrc
+ENV PATH /opt/conda/envs/gwas/bin:$PATH
 # For whatever reason, the dask package from conda-force ends
 # up being incompatible (multiprocessing scheduler doesn't work)
 # but it is fine when installed after the main environment
@@ -189,8 +189,8 @@ COPY kernel-almond.json /home/$USERNAME/.local/share/jupyter/kernels/scala/kerne
 WORKDIR /home/$USERNAME
 RUN mkdir repos data
 
-# Add project source directory to hail env
-RUN echo "/home/$USERNAME/repos/gwas-analysis/src/python" > /opt/conda/envs/hail/lib/python3.7/site-packages/local.pth
+# Add project source directory to env
+RUN echo "/home/$USERNAME/repos/gwas-analysis/src/python" > /opt/conda/envs/gwas/lib/python3.7/site-packages/local.pth
 
 # Add helpful environment variables
 ENV DATA_DIR /home/$USERNAME/data
@@ -203,7 +203,7 @@ ENV OMP_NUM_THREADS=1
 ENV MKL_NUM_THREADS=1
 ENV OPENBLAS_NUM_THREADS=1
 
-# Ensure reproducibility for python dict hashing 
+# Ensure reproducibility for python dict hashing
 ENV PYTHONHASHSEED=0
 
 # Ensure that jupyter defaults to bash shell
