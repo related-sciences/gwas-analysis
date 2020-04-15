@@ -1,12 +1,14 @@
 import xarray as xr
 import numpy as np
+import re
 from xarray.core.pycompat import dask_array_type
 from typing import Any, Sequence
-import inspect
 import collections.abc
+
 
 class ShapeError(Exception):
     pass
+
 
 def is_array(data: Any) -> bool:
     # Check for duck array type (cf. https://numpy.org/neps/nep-0018-array-function-protocol.html)
@@ -17,21 +19,19 @@ def is_array(data: Any) -> bool:
     return isinstance(data, xr.DataArray) \
         or isinstance(data, dask_array_type) \
         or hasattr(data, "__array_function__") # Dask should eventually support this
-    
-def is_signature_compatible(fn, *args, **kwargs) -> bool:
-    sig = inspect.signature(fn)
-    try:
-        sig.bind(*args, **kwargs)
-        return True
-    except TypeError:
-        return False
-    
+
+
+def to_snake_case(value):
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', value).lower()
+
+
 def is_shape_match(arr, dims) -> bool:
     for dim, size in dims.items():
         if arr.sizes[dim] != size:
             return False
     return True
-    
+
+
 def check_array(cls: Any, data: Any, types: Sequence[Any] = None, dims: Sequence[str] = None) -> Any:
     if types:
         if isinstance(types, str):
@@ -46,10 +46,11 @@ def check_array(cls: Any, data: Any, types: Sequence[Any] = None, dims: Sequence
             raise ShapeError(f'{cls} expects {len(dims)}-dimensional data (not shape: {data.shape})')
     return data
 
-def check_domain(cls: Any, data: Any, min_value: float, max_value: float) -> Any:
+
+def check_domain(data: Any, min_value: float, max_value: float) -> Any:
     rng = [data.min(), data.max()]
     if rng[0] < min_value or rng[1] > max_value:
-        raise ValueError(f'{cls} expects values in range [{min_value}, {max_value}]) (not range: {rng})')
+        raise ValueError(f'Values must be in range [{min_value}, {max_value}]) (min/max found: {rng})')
     return data
 
 

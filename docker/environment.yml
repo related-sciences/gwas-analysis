@@ -21,6 +21,7 @@ dependencies:
 - pyarrow=0.15.1
 - numba=0.48.0
 - multipledispatch=0.6.0
+- mypy=0.770
 - jupyter
 - pip
 - pip:

@@ -11,3 +11,4 @@ dask-worker-space/
 _.DS_Store
 ._.DS_Store
 __pycache__
+.mypy_cache
