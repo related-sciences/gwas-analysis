@@ -10,19 +10,19 @@ from lib.ops import get_mask_array, get_filled_array
 from typing import Mapping, Sequence, Any, Type, Hashable
 from xarray import Dataset
 import collections
-       
+import functools
+
 # TODO:
+# - Make type checks structural and not based on attrs
+
+# Questions:
 # - Is there a type hint compatible with duck arrays?
 #   - Xarray uses Any (e.g. https://github.com/pydata/xarray/blob/master/xarray/core/dataarray.py#L559)
 #   - See https://github.com/numpy/numpy/issues/7370 (PEP 484)
-# - What is the best way to implement code dependent on optional dependencies (i.e. avoid requiring global dask imports)?
-# - Are we sure it's worth assuming no support for masking in Xarray?
-#   - https://github.com/pydata/xarray/issues/1194
+# - What is the best way to implement code with optional dependencies (i.e. avoid requiring global dask imports)?
 
 # Notes:
 # - xr.DataArray(xr.DataArray()) will call .asarray on input argument pushing .data into memory as numpy
-# - Xarray often invokes constructors on DataArray/Dataset like this: ```type(self)(*args, **kwargs)```
-#   - This means that subclasses must be able to differentiate between constructor params
 # - Accessing "owner" class when working with descriptors is possible with __set_name__
 #   - See: https://www.python.org/dev/peps/pep-0487/
 #   - See: https://stackoverflow.com/questions/2366713/can-a-decorator-of-an-instance-method-access-the-class
@@ -249,7 +249,6 @@ class DatasetTransmutationAccessor():
 
     def __init__(self, ds):
         def add_fn(name, fn, ds):
-            import functools
             ifn = lambda *args, **kwargs: fn(ds, *args, **kwargs)
             ifn = functools.update_wrapper(ifn, fn)
             setattr(self, name, ifn)
