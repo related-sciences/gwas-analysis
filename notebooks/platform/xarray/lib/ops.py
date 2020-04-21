@@ -32,7 +32,8 @@ def get_mask_array(data):
 
 def _check_fill_value(fill_value, dtype):
     if fill_value < 0 and not np.issubdtype(dtype, np.signedinteger):
-        raise ValueError(f'Mask filling only supported for signed integer types with negative fill value {fill_value}')
+        raise ValueError(f'Mask filling with negative value not supported '
+                         f'for unsigned integer types (fill_value = {fill_value}, dtype = {dtype})')
         
 @dispatch(numpy_array_type)
 def get_filled_array(data, fill_value):
