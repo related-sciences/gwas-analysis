@@ -3,6 +3,7 @@ import functools
 import abc
 from lib import config
 from lib import core
+from lib import compat
 
 
 # ----------------------------------------------------------------------
@@ -66,15 +67,38 @@ The default PLINK reader/writer backend. Available options: 'pysnptools', defaul
 
 BACKENDS = {cls.id: cls() for cls in Backend.__subclasses__()}
 
+REQUIREMENTS = {
+    # List of preferred backends by key
+    'io.plink.backend': [
+        # Backend ID -> Sequence of package requirements
+        ('pysnptools', ['pysnptools'])
+    ]
+}
+
 
 def register_backend(backend: Backend) -> None:
     BACKENDS[backend.id] = backend
 
 
+def _all_compatible(packages):
+    for pkg in packages:
+        status = compat.check_package(pkg)
+        if not status.installed or not status.compatible:
+            return False
+    return True
+
+
 def get_backend(key: str, backend: str) -> Backend:
     if backend == 'auto':
-        # TODO: make this infer backend based on those available within the options possible
-        pass
+        for be, pkgs in REQUIREMENTS[key]:
+            if _all_compatible(pkgs):
+                backend = be
+                break
+        if backend == 'auto':
+            # If no requirements are met for any backend, prompt for install of
+            # the highest priority backend (i.e. the first one)
+            be, pkgs = REQUIREMENTS[key][0]
+            raise ImportError(f'I/O backend "{be}" requires the following packages to be installed: {pkgs}')
     return BACKENDS[backend]
 
 
