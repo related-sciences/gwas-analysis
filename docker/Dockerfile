@@ -79,7 +79,7 @@ RUN curl -sL --retry 3 \
 # Default the driver memory to something very large since the purpose of this container is to run local mode tests
 # Note: This is crucial for making hail work by default in local mode
 RUN cp $SPARK_HOME/conf/spark-env.sh.template $SPARK_HOME/conf/spark-env.sh && \
-  echo "export SPARK_DRIVER_MEMORY=64G" >> $SPARK_HOME/conf/spark-env.sh
+  echo "export SPARK_DRIVER_MEMORY=30G" >> $SPARK_HOME/conf/spark-env.sh
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Conda Initialization
@@ -205,6 +205,11 @@ ENV OPENBLAS_NUM_THREADS=1
 
 # Ensure reproducibility for python dict hashing
 ENV PYTHONHASHSEED=0
+
+RUN wget http://download-keycdn.ej-technologies.com/jprofiler/jprofiler_linux_11_1_2.tar.gz -P /tmp/ &&\
+ sudo tar -xzf /tmp/jprofiler_linux_11_1_2.tar.gz -C /usr/local &&\
+ rm /tmp/jprofiler_linux_11_1_2.tar.gz
+ENV JPAGENT_PATH="-agentpath:/usr/local/jprofiler11.1.2/bin/linux-x64/libjprofilerti.so=wait"
 
 # Ensure that jupyter defaults to bash shell
 ENV SHELL /bin/bash
