@@ -18,7 +18,7 @@ class Measurment:
 class Experiment(AbstractContextManager):
     def __init__(self, name: str):
         self.name = name
-        self.measurment_dir = Path(f"{Path.home().as_posix()}/data/tmp/measurments")
+        self.measurment_dir = Path(__file__).resolve().parent.joinpath("measurments")
         self.measurment_dir.mkdir(parents=True, exist_ok=True)
         self.experiment_file = self.measurment_dir.joinpath(f"exp_{name}")
         if not self.experiment_file.exists():
