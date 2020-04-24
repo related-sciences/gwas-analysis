@@ -1,6 +1,6 @@
 ## Xarray Genetic Data API Prototype
 
-This prototype library proposes a data model and API for genetic data.  These implementations should be largely compatible with the [skallel](https://github.com/scikit-allel/skallel) framework, and this is intended as a starting point for a top-down design.
+This prototype library proposes a data model and API for genetic data.  These implementations should be largely compatible with the [skallel](https://github.com/scikit-allel/skallel) framework and this is intended as a starting point on a top-down design.
 
 Links:
 
