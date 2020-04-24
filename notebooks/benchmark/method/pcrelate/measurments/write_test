@@ -1,0 +1,4 @@
+samples,variants,population,pca,pc_relate,result_num_rows
+100,100,2,4.23,1.64,4950
+100,100,2,9.31,3.19,4950
+100,100,2,8.95,3.12,None

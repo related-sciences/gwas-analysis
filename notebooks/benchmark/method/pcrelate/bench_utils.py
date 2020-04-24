@@ -20,7 +20,7 @@ class Experiment(AbstractContextManager):
         self.name = name
         self.measurment_dir = Path(__file__).resolve().parent.joinpath("measurments")
         self.measurment_dir.mkdir(parents=True, exist_ok=True)
-        self.experiment_file = self.measurment_dir.joinpath(f"exp_{name}")
+        self.experiment_file = self.measurment_dir.joinpath(f"write_{name}")
         if not self.experiment_file.exists():
             self.experiment_fd = self.experiment_file.open("w")
             self.experiment_fd.write("samples,variants,population,pca,pc_relate,result_num_rows\n")
