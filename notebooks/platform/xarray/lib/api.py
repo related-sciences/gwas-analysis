@@ -1,11 +1,6 @@
-from lib.core import *
-from lib import io
-from lib.io import (
+from .core import *
+from . import io
+from .io import (
     read_plink
 )
-from lib.config import (
-    option_context,
-    set_option,
-    get_option,
-    describe_option
-)
+from .config import config

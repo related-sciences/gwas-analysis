@@ -1,9 +1,9 @@
 from __future__ import annotations
-from multipledispatch import dispatch
-from functools import partial
-from lib.backend import numpy_array_type, dask_array_type, xarray_array_type
-from lib.utils import get_base_module
 import numpy as np
+from functools import partial
+from multipledispatch import dispatch
+from .compat import numpy_array_type, dask_array_type, xarray_array_type
+from .utils import get_base_module
 
 dispatch_namespace = dict()
 dispatch = partial(dispatch, namespace=dispatch_namespace)
@@ -16,7 +16,7 @@ def get_mask_array(data):
 @dispatch(dask_array_type)
 def get_mask_array(data):
     import dask.array as da
-    # For some reason, np.ma.getmaskarray does not work on masked dask arrays
+    # For some reason np.ma.getmaskarray does not work on masked dask arrays
     meta_module = get_base_module(data._meta)
     meta_name = type(data._meta).__name__
     if meta_module == 'numpy' and meta_name == 'MaskedArray':

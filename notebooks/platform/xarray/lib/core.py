@@ -2,15 +2,14 @@ from __future__ import annotations
 import xarray as xr
 import numpy as np
 import inspect
-import sys
-from dataclasses import dataclass
-from lib import DIM_VARIANT, DIM_SAMPLE, DIM_PLOIDY, DIM_ALLELE
-from lib.utils import is_array, check_array, check_domain, is_shape_match, to_snake_case
-from lib.ops import get_mask_array, get_filled_array
-from typing import Mapping, Sequence, Any, Type, Hashable
-from xarray import Dataset
 import collections
 import functools
+from dataclasses import dataclass
+from typing import Mapping, Sequence, Any, Type, Hashable
+from xarray import Dataset
+from . import DIM_VARIANT, DIM_SAMPLE, DIM_PLOIDY, DIM_ALLELE
+from .utils import check_array, is_shape_match, to_snake_case
+from .ops import get_mask_array, get_filled_array
 
 # TODO:
 # - Make type checks structural and not based on attrs

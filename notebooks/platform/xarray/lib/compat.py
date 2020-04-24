@@ -2,14 +2,49 @@ import importlib
 import distutils
 from dataclasses import dataclass
 from typing import Optional
+import numpy as np
+import xarray as xr
+from xarray.core.pycompat import dask_array_type, sparse_array_type
+
+
+def try_import(fn: callable) -> bool:
+    try:
+        fn()
+        return True
+    except ImportError:
+        return False
+
+
+numpy_array_type = (np.ndarray,)
+xarray_array_type = (xr.DataArray,)
+
+
+def import_cuda():
+    import numba.cuda.cudadrv.devicearray.DeviceNDArray
+
+
+cuda_installed = try_import(import_cuda)
+
+if cuda_installed:
+    import numba.cuda.cudadrv.devicearray as ca
+
+    cuda_array_type = (ca.DeviceNDArray,)
+else:
+    cuda_array_type = ()
+
+
+@dataclass
+class Requirement:
+    package_name: str
+    package_minimum_version: Optional[str] = None
 
 
 @dataclass
 class PackageStatus:
     name: str
-    version: Optional[str]
     installed: bool
     compatible: bool
+    version: Optional[str] = None
 
 
 def check_package(name, minimum_version=None):
