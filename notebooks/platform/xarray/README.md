@@ -14,8 +14,8 @@ Links:
 
 ### Code 
 
-- The internals for data structures are in [core.py](notebooks/platform/xarray/lib/core.py)
-- The proposed dispatching framework is in [dispatch.py](notebooks/platform/xarray/lib/dispatch.py)
-- An example PLINK backend is in [io/pysnptools_backend.py](notebooks/platform/xarray/lib/io/pysnptools_backend.py)
+- The internals for data structures are in [core.py](lib/core.py)
+- The proposed dispatching framework is in [dispatch.py](lib/dispatch.py)
+- An example PLINK backend is in [io/pysnptools_backend.py](lib/io/pysnptools_backend.py)
 
  
