@@ -7,7 +7,7 @@ Links:
 ### Notebooks
 
 - [io.ipynb](https://nbviewer.jupyter.org/github/related-sciences/gwas-analysis/blob/master/notebooks/platform/xarray/io.ipynb) - IO plugin framework and PLINK examples
-- [dispatching.ipynb](https://nbviewer.jupyter.org/github/related-sciences/gwas-analysis/blob/master/notebooks/platform/xarray/indexing.ipynb) - A short discussion on problems with dispatching to pydata array backends and proposed solutions (the IO example above uses the framework illustrated here)
+- [dispatching.ipynb](https://nbviewer.jupyter.org/github/related-sciences/gwas-analysis/blob/master/notebooks/platform/xarray/dispatching.ipynb) - A short discussion on problems with dispatching to pydata array backends and proposed solutions (the IO example above uses the framework illustrated here)
 - [data_structures.ipynb](https://nbviewer.jupyter.org/github/related-sciences/gwas-analysis/blob/master/notebooks/platform/xarray/data_structures.ipynb) - Xarray Dataset subtype composition and accessors
 - [indexing.ipynb](https://nbviewer.jupyter.org/github/related-sciences/gwas-analysis/blob/master/notebooks/platform/xarray/indexing.ipynb) - Xarray indexing, selection, and "join" examples
 - Note: All notebooks here don't render well on github so links point to nbviewer (use that for browsing them or they're difficult to understand)
