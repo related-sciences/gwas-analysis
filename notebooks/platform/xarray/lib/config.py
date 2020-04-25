@@ -50,4 +50,5 @@ class Configuration:
     def __setattr__(self, key, value):
         pd.set_option(key, value)
 
+# Create config object within config module as Dask does
 config = Configuration()

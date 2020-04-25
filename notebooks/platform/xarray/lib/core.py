@@ -82,7 +82,7 @@ def _create_dataset(cls, arrays, **kwargs):
     }
 
     # Add dataset type to attributes
-    kwargs = {'attrs': {**(kwargs.get('attrs', {})), **{'type': cls}}}
+    kwargs = {'attrs': {**(kwargs.get('attrs', {})), **{'type': cls.__name__}}}
     return xr.Dataset(data_vars=arrays, **kwargs)
 
 # ----------------------------------------------------------------------
@@ -217,6 +217,31 @@ class GenotypeAlleleCountDataset(GeneticDataset):
     def to(cls, ds, dstype):
         return dstype
 
+
+def isdstype(ds: Dataset, cls: Type[GeneticDataset]):
+    return ds.to.retyped().type == cls.__name__
+
+
+_dstypes = {t.__name__: t for t in GeneticDataset.__subclasses__()}
+
+
+def retype(ds: Dataset) -> Dataset:
+    """Assign type for dataset based on attributes or structure
+
+    The returned dataset is guaranteed to have a value for `type` in attrs, and it
+    is either left alone if already present (possibly with assertion of structure)
+    or set based on structure.
+    """
+    if 'type' in ds.attrs:
+        if ds.type not in _dstypes:
+            raise TypeError(f'Dataset has invalid type "{ds.type}" in attrs')
+        # TODO: Assert that dataset is compliant with type, potentially with configuration
+        # options allowing for this to be skipped
+        return ds
+
+    # TODO: Infer type based on structure
+    raise ValueError('Dataset does not have required attribute "type"')
+
 # ----------------------------------------------------------------------
 
 
@@ -233,11 +258,20 @@ for dstype in GeneticDataset.__subclasses__():
 class DatasetTransmutationAccessor():
 
     def __init__(self, ds):
+        # Assert or assign type
+        ds = retype(ds)
+
+        # Monkey patch transmutation functions based on dataset type
         def add_fn(name, fn, ds):
             ifn = lambda *args, **kwargs: fn(ds, *args, **kwargs)
             ifn = functools.update_wrapper(ifn, fn)
             setattr(self, name, ifn)
-        for dstype, fn in GeneticDataset.transmutations[ds.attrs['type'].__name__].items():
+        for dstype, fn in GeneticDataset.transmutations[ds.type].items():
             add_fn(to_snake_case(dstype), fn, ds)
+        self.ds = ds
+
+    def retyped(self):
+        """Get Dataset with guaranteed type assignment"""
+        return self.ds
 
 # ----------------------------------------------------------------------

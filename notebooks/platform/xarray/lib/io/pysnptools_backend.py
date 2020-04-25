@@ -1,92 +1,78 @@
 import numpy as np
-from numcodecs import PackBits
-from numcodecs.abc import Codec
-from numcodecs.compat import ensure_ndarray, ndarray_copy
-from ..core import create_genotype_count_dataset
+import xarray as xr
+from pathlib import Path
+from .. import core
+from ..typing import PathType
 from .core import register_backend, PLINKBackend
 from ..compat import Requirement
 
 
-class BedArray(object):
+class BedReader(object):
 
-    def __init__(self, bed, dtype=np.uint8):
-        self.bed = bed
-        self.shape = (bed.sid_count, bed.iid_count)
+    def __init__(self, path, shape, dtype=np.int8, count_A1=True):
+        from pysnptools.snpreader import Bed
+        # n variants (sid = SNP id), n samples (iid = Individual id)
+        n_sid, n_iid = shape
+        # Initialize Bed with empty arrays for axis data, otherwise it will
+        # load the bim/map/fam files entirely into memory (it does not do out-of-core for those)
+        self.bed = Bed(
+            str(path), count_A1=count_A1,
+            # Array (n_sample, 2) w/ FID and IID
+            iid=np.empty((n_iid, 2), dtype='str'),
+            # SNP id array (n_variants)
+            sid=np.empty((n_sid,), dtype='str'),
+            # Contig and positions array (n_variants, 3)
+            pos=np.empty((n_sid, 3), dtype='int')
+        )
+        self.shape = (n_sid, n_iid)
         self.dtype = dtype
         self.ndim = 2
 
+    @staticmethod
+    def _is_empty_slice(s):
+        return s.start == s.stop
+
     def __getitem__(self, idx):
-        assert isinstance(idx, tuple)
-        # TODO: Make sure this is getting closed
-        # https://github.com/fastlmm/PySnpTools/blob/0528bf8684a3dbd2eafc26d3fda34f6f902fce6c/pysnptools/snpreader/bed.py#L91
-        chunk = self.bed.__getitem__(idx[::-1]).read(dtype=np.float32)
-        arr = chunk.val.T
+        if not isinstance(idx, tuple):
+            raise IndexError(f'Indexer must be tuple (received {type(idx)})')
+        if len(idx) != self.ndim:
+            raise IndexError(f'Indexer must be two-item tuple (received {len(idx)} slices)')
+
+        # This is called by dask with empty slices before trying to read any chunks, so it may need
+        # to be handled separately if pysnptools is slow here
+        # if all(map(BedReader._is_empty_slice, idx)):
+        #     return np.empty((0, 0), dtype=self.dtype)
+
+        arr = self.bed[idx[::-1]].read(dtype=np.float32, view_ok=False).val.T
         arr = np.ma.masked_invalid(arr)
         arr = arr.astype(self.dtype)
         return arr
 
-
-class PackGeneticBits(PackBits):
-    """Custom Zarr plugin for encoding allele counts as 2 bit integers"""
-
-    codec_id = 'packgeneticbits'
-
-    def __init__(self):
-        super().__init__()
-
-    def encode(self, buf):
-
-        # normalise input
-        arr = ensure_ndarray(buf)
-
-        # broadcast to 3rd dimension having 2 elements, least significant
-        # bit then second least, in that order; results in nxmx2 array
-        # containing individual bits as bools
-        # see: https://stackoverflow.com/questions/22227595/convert-integer-to-binary-array-with-suitable-padding
-        arr = arr[: ,: ,None] & (1 << np.arange(2)) > 0
-
-        return super().encode(arr)
-
-    def decode(self, buf, out=None):
-
-        # normalise input
-        enc = ensure_ndarray(buf).view('u1')
-
-        # flatten to simplify implementation
-        enc = enc.reshape(-1, order='A')
-
-        # find out how many bits were padded
-        n_bits_padded = int(enc[0])
-
-        # apply decoding
-        dec = np.unpackbits(enc[1:])
-
-        # remove padded bits
-        if n_bits_padded:
-            dec = dec[:-n_bits_padded]
-
-        # view as boolean array
-        dec = dec.view(bool)
-
-        # given a flattened version of what was originally an nxmx2 array,
-        # reshape to group adjacent bits in second dimension and
-        # convert back to int based on each little-endian bit pair
-        dec = np.packbits(dec.reshape((-1, 2)), bitorder='little', axis=1)
-        dec = dec.squeeze(axis=1)
-
-        # handle destination
-        return ndarray_copy(dec, out)
+    def close(self):
+        # This is not actually crucial since a Bed instance with no
+        # in-memory bim/map/fam data is essentially just a file pointer
+        # but this will still be problematic if the an array is created
+        # from the same PLINK dataset many times
+        self.bed._close_bed()
 
 
-# Keep this in mind -- not sure where this sort of thing should go yet:
-# from dask.distributed import WorkerPlugin
-# class DaskCodecPlugin(WorkerPlugin):
-#
-#     def setup(self, worker):
-#         from numcodecs.registry import register_codec
-#         register_codec(PackGeneticBits)
+def _array_name(f, path):
+    return f.__qualname__ + ':' + str(path)
 
 
+def _dd_to_dataset(df, dim):
+    # Is this general enough to move to somewhere common?
+    # Watch: https://github.com/pydata/xarray/issues/3929
+    data_vars = {}
+    for c in df:
+        # Convert Dask Series to xr.DataArray with no coordinates
+        # Use lengths=True to include chunk size calculations
+        arr = df[c].to_dask_array(lengths=True)
+        data_vars[c] = xr.DataArray(arr, dims=dim)
+    return xr.Dataset(data_vars, coords={dim: np.arange(len(df))})
+
+
+# TODO: Make dask usage optional
 class PySnpToolsBackend(PLINKBackend):
 
     id = 'pysnptools'
@@ -96,32 +82,38 @@ class PySnpToolsBackend(PLINKBackend):
             raise NotImplementedError('Only PLINK version 1.9 currently supported')
         self.version = version
 
-    def read_fam(self, path, sep='\t'):
-        import pandas as pd
+    def read_fam(self, path: PathType, sep='\t'):
+        import dask.dataframe as dd
         names = ['sample_id', 'fam_id', 'pat_id', 'mat_id', 'is_female', 'phenotype']
-        return pd.read_csv(path + '.fam', sep=sep, names=names)
+        return dd.read_csv(str(path) + '.fam', sep=sep, names=names)
 
-    def read_bim(self, path, sep=' '):
-        import pandas as pd
-        names = ['contig', 'variant_id', 'cm_pos', 'pos', 'allele_1', 'allele_2']
-        return pd.read_csv(path + '.bim', sep=sep, names=names)
+    def read_bim(self, path: PathType, sep=' '):
+        import dask.dataframe as dd
+        names = ['contig', 'variant_id', 'cm_pos', 'pos', 'a1', 'a2']
+        return dd.read_csv(str(path) + '.bim', sep=sep, names=names)
 
-    def read_plink(self, path, chunks='auto', fam_sep='\t', bim_sep=' '):
+    def read_plink(self, path: PathType, chunks='auto', fam_sep='\t', bim_sep=' ', count_A1=True):
         import dask.array as da
-        import xarray as xr
-        from pysnptools.snpreader import Bed
+
+        # TODO: Have this choose matching chunk sizes for data array and data frames
+        # (to avoid zarr write errors)
+
+        # Load axis data first to determine dimension sizes
+        df_fam = self.read_fam(path, sep=fam_sep)
+        df_bim = self.read_bim(path, sep=bim_sep)
 
         # Load genotyping data
-        # * Make sure to use asarray=False in order for masked arrays to propagate
         arr = da.from_array(
-            BedArray(Bed(path, count_A1=True), dtype='int8'),
-            chunks=chunks, lock=False, asarray=False, name=None
+            # Make sure to use asarray=False in order for masked arrays to propagate
+            BedReader(path, (len(df_bim), len(df_fam)), count_A1=count_A1),
+            chunks=chunks, lock=False, asarray=False,
+            name=_array_name(self.read_plink, path)
         )
-        ds = create_genotype_count_dataset(arr)
+        ds = core.create_genotype_count_dataset(arr)
 
-        # Attach variant/sample data
-        ds_fam = xr.Dataset.from_dataframe(self.read_fam(path, sep=fam_sep).rename_axis('sample', axis='index'))
-        ds_bim = xr.Dataset.from_dataframe(self.read_bim(path, sep=bim_sep).rename_axis('variant', axis='index'))
+        # Create variant/sample datasets from dataframes
+        ds_fam = _dd_to_dataset(df_fam, dim='sample')
+        ds_bim = _dd_to_dataset(df_bim, dim='variant')
 
         # Merge
         return ds.merge(ds_fam).merge(ds_bim)

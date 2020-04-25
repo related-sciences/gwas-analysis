@@ -86,7 +86,7 @@ def is_compatible(backend: Backend):
     This is now based solely on installation of packages but may
     expand in the future to OS or system resource constraints as well
     """
-    for req in backend.requirements:
+    for req in backend.requirements():
         status = check_package(req.package_name)
         if not status.installed or not status.compatible:
             return False
