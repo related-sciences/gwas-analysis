@@ -1,0 +1,15 @@
+FROM rapidsai/rapidsai:0.13-cuda10.1-base-ubuntu18.04-py3.7
+ARG NB_DIR=/lab
+
+# Install conda dependencies
+COPY environment.yml /tmp/
+RUN conda env update -n rapids --file /tmp/environment.yml
+
+# Install pysnptools separately (does not work as pip install with conda env update)
+RUN apt-get update && apt-get install -y g++
+RUN /conda/envs/rapids/bin/pip install --no-cache-dir pysnptools==0.4.11
+
+RUN mkdir -p $NB_DIR/data $NB_DIR/repos
+WORKDIR $NB_DIR
+
+CMD jupyter-lab --allow-root --ip=0.0.0.0 --no-browser --NotebookApp.token=''

@@ -1,0 +1,18 @@
+channels:
+- conda-forge
+- defaults
+dependencies:
+- zarr
+- netcdf4
+- bottleneck
+- pyarrow
+- mypy
+- xarray=0.15.1
+- dask[complete]=2.15.0
+- multipledispatch=0.6.0
+- jupyterlab=2.1.1
+- pip
+- pip:
+  - papermill==1.2.1
+  - python-dotenv==0.11.0
+  - xlrd
