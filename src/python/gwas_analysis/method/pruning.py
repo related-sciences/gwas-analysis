@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from numba import float64, int64, jit, njit, uint8
-from numba.typed import Dict
+from numba import jit
 from typing import List
 
 import dask.array as da

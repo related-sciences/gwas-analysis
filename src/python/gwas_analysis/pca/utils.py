@@ -1,4 +1,4 @@
-from typing import *
+from typing import List, Optional, Tuple
 
 import hail as hl
 

@@ -18,7 +18,6 @@ def display_image_grid(images, n_rows, n_cols):
     import numpy as np
     import matplotlib.pyplot as plt
 
-    n = len(images)
     h = np.max([im.shape[0] for im in images])
     w = np.max([im.shape[1] for im in images])
     fig, axs = plt.subplots(n_rows, n_cols, squeeze=False)

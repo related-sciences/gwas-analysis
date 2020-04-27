@@ -1,6 +1,5 @@
 from dask.distributed import WorkerPlugin
 from numcodecs import PackBits
-from numcodecs.abc import Codec
 from numcodecs.compat import ensure_ndarray, ndarray_copy
 
 import numpy as np
