@@ -1,12 +1,13 @@
-import hail as hl
 from typing import *
+
+import hail as hl
 
 
 # Adapted from: https://github.com/macarthur-lab/gnomad_hail/blob/63fd946ab3e46ccd0b7a2109193b42c6d0a19fb9/gnomad_hail/utils/sample_qc.py
 def hwe_normalized_pca(
-        qc_mt: hl.MatrixTable,
-        related_samples_to_drop: Optional[hl.Table] = None,
-        n_pcs: int = 10
+    qc_mt: hl.MatrixTable,
+    related_samples_to_drop: Optional[hl.Table] = None,
+    n_pcs: int = 10,
 ) -> Tuple[List[float], hl.Table, hl.Table]:
     """
     First runs PCA excluding the given related samples,
@@ -24,16 +25,24 @@ def hwe_normalized_pca(
     unrelated_mt = qc_mt
 
     if related_samples_to_drop:
-        unrelated_mt = qc_mt.filter_cols(hl.is_missing(related_samples_to_drop[qc_mt.col_key]))
+        unrelated_mt = qc_mt.filter_cols(
+            hl.is_missing(related_samples_to_drop[qc_mt.col_key])
+        )
 
-    pca_evals, pca_scores, pca_loadings = hl.hwe_normalized_pca(unrelated_mt.GT, k=n_pcs, compute_loadings=True)
-    pca_af_ht = unrelated_mt.annotate_rows(pca_af=hl.agg.mean(unrelated_mt.GT.n_alt_alleles()) / 2).rows()
+    pca_evals, pca_scores, pca_loadings = hl.hwe_normalized_pca(
+        unrelated_mt.GT, k=n_pcs, compute_loadings=True
+    )
+    pca_af_ht = unrelated_mt.annotate_rows(
+        pca_af=hl.agg.mean(unrelated_mt.GT.n_alt_alleles()) / 2
+    ).rows()
     pca_loadings = pca_loadings.annotate(pca_af=pca_af_ht[pca_loadings.key].pca_af)
 
     if not related_samples_to_drop:
         return pca_evals, pca_scores, pca_loadings
     else:
-        related_mt = qc_mt.filter_cols(hl.is_defined(related_samples_to_drop[qc_mt.col_key]))
+        related_mt = qc_mt.filter_cols(
+            hl.is_defined(related_samples_to_drop[qc_mt.col_key])
+        )
         related_scores = pc_project(related_mt, pca_loadings)
         pca_scores = pca_scores.union(related_scores)
         return pca_evals, pca_scores, pca_loadings
@@ -41,10 +50,10 @@ def hwe_normalized_pca(
 
 # Adapted from: https://github.com/macarthur-lab/gnomad_hail/blob/537cb9dd19c4a854a9ec7f29e552129081598399/utils/generic.py#L105
 def pc_project(
-        mt: hl.MatrixTable,
-        loadings_ht: hl.Table,
-        loading_location: str = "loadings",
-        af_location: str = "pca_af"
+    mt: hl.MatrixTable,
+    loadings_ht: hl.Table,
+    loading_location: str = "loadings",
+    af_location: str = "pca_af",
 ) -> hl.Table:
     """
     Projects samples in `mt` on pre-computed PCs.
@@ -57,27 +66,33 @@ def pc_project(
     """
     mt = pc_hwe_gt(mt, loadings_ht, loading_location, af_location)
     mt = mt.annotate_cols(scores=hl.agg.array_sum(mt.pca_loadings * mt.GTN))
-    return mt.cols().select('scores')
+    return mt.cols().select("scores")
 
 
 def pc_hwe_gt(
-        mt: hl.MatrixTable,
-        loadings_ht: hl.Table,
-        loading_location: str = "loadings",
-        af_location: str = "pca_af"
+    mt: hl.MatrixTable,
+    loadings_ht: hl.Table,
+    loading_location: str = "loadings",
+    af_location: str = "pca_af",
 ) -> hl.MatrixTable:
     n_variants = loadings_ht.count()
 
     mt = mt.annotate_rows(
         pca_loadings=loadings_ht[mt.row_key][loading_location],
-        pca_af=loadings_ht[mt.row_key][af_location]
+        pca_af=loadings_ht[mt.row_key][af_location],
     )
 
-    mt = mt.filter_rows(hl.is_defined(mt.pca_loadings) & hl.is_defined(mt.pca_af) &
-                        (mt.pca_af > 0) & (mt.pca_af < 1))
+    mt = mt.filter_rows(
+        hl.is_defined(mt.pca_loadings)
+        & hl.is_defined(mt.pca_af)
+        & (mt.pca_af > 0)
+        & (mt.pca_af < 1)
+    )
 
     # Attach normalized entries to be used in projection
     mt = mt.annotate_entries(
-        GTN=(mt.GT.n_alt_alleles() - 2 * mt.pca_af) / hl.sqrt(n_variants * 2 * mt.pca_af * (1 - mt.pca_af)))
+        GTN=(mt.GT.n_alt_alleles() - 2 * mt.pca_af)
+        / hl.sqrt(n_variants * 2 * mt.pca_af * (1 - mt.pca_af))
+    )
 
     return mt

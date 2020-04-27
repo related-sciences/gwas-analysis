@@ -1,15 +1,16 @@
-import numpy as np
+from dask.distributed import WorkerPlugin
 from numcodecs import PackBits
 from numcodecs.abc import Codec
 from numcodecs.compat import ensure_ndarray, ndarray_copy
-from dask.distributed import WorkerPlugin
+
+import numpy as np
 
 
 # See: https://github.com/zarr-developers/numcodecs/blob/master/numcodecs/packbits.py
 class PackGeneticBits(PackBits):
     """Custom Zarr plugin for encoding allele counts as 2 bit integers"""
 
-    codec_id = 'packgeneticbits'
+    codec_id = "packgeneticbits"
 
     def __init__(self):
         super().__init__()
@@ -28,10 +29,10 @@ class PackGeneticBits(PackBits):
 
     def decode(self, buf, out=None):
         # normalise input
-        enc = ensure_ndarray(buf).view('u1')
+        enc = ensure_ndarray(buf).view("u1")
 
         # flatten to simplify implementation
-        enc = enc.reshape(-1, order='A')
+        enc = enc.reshape(-1, order="A")
 
         # find out how many bits were padded
         n_bits_padded = int(enc[0])
@@ -49,7 +50,7 @@ class PackGeneticBits(PackBits):
         # given a flattened version of what was originally an nxmx2 array,
         # reshape to group adjacent bits in second dimension and
         # convert back to int based on each little-endian bit pair
-        dec = np.packbits(dec.reshape((-1, 2)), bitorder='little', axis=1)
+        dec = np.packbits(dec.reshape((-1, 2)), bitorder="little", axis=1)
         dec = dec.squeeze(axis=1)
 
         # handle destination
@@ -57,7 +58,7 @@ class PackGeneticBits(PackBits):
 
 
 class CodecPlugin(WorkerPlugin):
-
     def setup(self, worker):
         from numcodecs.registry import register_codec
+
         register_codec(PackGeneticBits)

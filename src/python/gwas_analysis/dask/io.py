@@ -1,9 +1,9 @@
 import numpy as np
 
+
 # Create a wrapper around pysnptools Bed reader class so that dask can
 # access slices directly from PLINK files
 class BedArray(object):
-
     def __init__(self, bed):
         self.bed = bed
         self.shape = (bed.sid_count, bed.iid_count)
