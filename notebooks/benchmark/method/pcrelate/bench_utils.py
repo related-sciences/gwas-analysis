@@ -10,10 +10,9 @@ class Measurment:
     population: int
     pca_time: float
     pc_relate_time: float
-    num_rows: Optional[int] = None
 
     def to_csv(self) -> str:
-        return f"{self.samples},{self.variants},{self.population},{self.pca_time:.2f},{self.pc_relate_time:.2f},{self.num_rows}"
+        return f"{self.samples},{self.variants},{self.population},{self.pca_time:.2f},{self.pc_relate_time:.2f}"
 
 class Experiment(AbstractContextManager):
     def __init__(self, name: str):
@@ -23,7 +22,7 @@ class Experiment(AbstractContextManager):
         self.experiment_file = self.measurment_dir.joinpath(f"write_{name}")
         if not self.experiment_file.exists():
             self.experiment_fd = self.experiment_file.open("w")
-            self.experiment_fd.write("samples,variants,population,pca,pc_relate,result_num_rows\n")
+            self.experiment_fd.write("samples,variants,population,pca,pc_relate\n")
             self.experiment_fd.flush()
         else:
             self.experiment_fd = self.experiment_file.open("a")
