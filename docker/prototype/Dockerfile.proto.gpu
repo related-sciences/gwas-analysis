@@ -1,5 +1,5 @@
 FROM rapidsai/rapidsai:0.13-cuda10.1-base-ubuntu18.04-py3.7
-ARG NB_DIR=/lab
+ARG WORK_DIR=/lab
 
 # Install conda dependencies
 COPY environment.yml /tmp/
@@ -9,7 +9,12 @@ RUN conda env update -n rapids --file /tmp/environment.yml
 RUN apt-get update && apt-get install -y g++
 RUN /conda/envs/rapids/bin/pip install --no-cache-dir pysnptools==0.4.11
 
-RUN mkdir -p $NB_DIR/data $NB_DIR/repos
-WORKDIR $NB_DIR
+RUN mkdir -p $WORK_DIR/data $WORK_DIR/repos
+WORKDIR $WORK_DIR
+
+# Add helpful environment variables
+ENV DATA_DIR $WORK_DIR/data
+ENV REPO_DIR $WORK_DIR/repos/gwas-analysis
+ENV NB_DIR $REPO_DIR/notebooks
 
 CMD jupyter-lab --allow-root --ip=0.0.0.0 --no-browser --NotebookApp.token=''
