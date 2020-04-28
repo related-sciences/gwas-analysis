@@ -1,15 +1,16 @@
-import numpy as np
-import dask.array as da
-from numba import jit, njit, uint8, int64, float64
-from numba.typed import Dict
 from dataclasses import dataclass
+from numba import jit
 from typing import List
+
+import dask.array as da
+import numpy as np
 
 
 ##############################
 # Contig/Chunk Model Classes #
 ##############################
 # These are necessary for aligning array chunks to contig splits
+
 
 @dataclass(frozen=True)
 class ChunkContigInfo:
@@ -50,7 +51,11 @@ def get_chunk_info(pos, size):
             sizes += [int(c % size)]
         idx = [j + csct for j in range(len(sizes))]
         csct += len(sizes)
-        chunks.append(ChunkContigInfo(contig_index=i, contig_value=v, chunk_idx=idx, chunk_size=sizes))
+        chunks.append(
+            ChunkContigInfo(
+                contig_index=i, contig_value=v, chunk_idx=idx, chunk_size=sizes
+            )
+        )
     return ChunkInfo(chunks)
 
 
@@ -59,6 +64,7 @@ def get_chunk_info(pos, size):
 #####################
 # Workarounds for lack of per-axis reduction in numba
 # See: https://github.com/numba/numba/issues/1269
+
 
 @jit(nopython=True, nogil=True)
 def np_apply_along_axis(func1d, axis, arr):
@@ -74,13 +80,16 @@ def np_apply_along_axis(func1d, axis, arr):
             result[i] = func1d(arr[i, :])
     return result
 
+
 @jit(nopython=True, nogil=True)
 def np_mean(array, axis):
     return np_apply_along_axis(np.mean, axis, array)
 
+
 @jit(nopython=True, nogil=True)
 def np_std(array, axis):
     return np_apply_along_axis(np.std, axis, array)
+
 
 @jit(nopython=True, nogil=True)
 def np_argmin(array, axis):
@@ -93,6 +102,7 @@ def np_argmin(array, axis):
 # These functions define a parallel, block-wise LD prune algorithm that first
 # aligns array chunks to contigs and step/window intervals so that overlapping
 # calculations are not out of phase across chunks
+
 
 @jit(nopython=True, nogil=True)
 def corrcoef(gn0, gn1, gn0_sq, gn1_sq):
@@ -134,9 +144,17 @@ def corrcoef(gn0, gn1, gn0_sq, gn1_sq):
 
 
 def _prune(
-        X, block_id=None, window=None, step=None, threshold=None,
-        contig_boundary=None, chunk_offset=None, overlap_depth=None,
-        short_circuit=False, short_circuit_step_rate=2, return_ld_matrix=False
+    X,
+    block_id=None,
+    window=None,
+    step=None,
+    threshold=None,
+    contig_boundary=None,
+    chunk_offset=None,
+    overlap_depth=None,
+    short_circuit=False,
+    short_circuit_step_rate=2,
+    return_ld_matrix=False,
 ):
     assert block_id is not None
     assert window is not None
@@ -177,7 +195,7 @@ def _prune(
     if short_circuit:
         # TODO: This needs to be nan-insensitive
         Xc = (X - np.expand_dims(np_mean(X, 1), 1)) / np.expand_dims(np_std(X, 1), 1)
-        Xs = Xc[::(step // short_circuit_step_rate)]
+        Xs = Xc[:: (step // short_circuit_step_rate)]
         # Make sure to divide dot products by number of columns
         # TODO: Transpose is no longer row major and matmul throws numba perf warning
         # so presumably the cost of a copy to C contiguous array is worth it here --
@@ -227,7 +245,7 @@ def _prune(
                 # r2 = np.corrcoef(xi, xj)[0, 1] ** 2 # This ends up being WAY slower
 
                 # Small rounding errors like 1.0000000000000013 do occur
-                assert np.isnan(r2) or (-1 - EPS  <= r2 <= 1 + EPS)
+                assert np.isnan(r2) or (-1 - EPS <= r2 <= 1 + EPS)
                 if return_ld_matrix:
                     ldm[i, j] = r2
                 if r2 > threshold:
@@ -244,7 +262,18 @@ def _prune(
         return np.stack((keep_idx, blk_ids), axis=1)
 
 
-def prune(X, pos, window, step, threshold, align_chunks=True, short_circuit=False, windows_per_chunk=10, numba=False, compute=True):
+def prune(
+    X,
+    pos,
+    window,
+    step,
+    threshold,
+    align_chunks=True,
+    short_circuit=False,
+    windows_per_chunk=10,
+    numba=False,
+    compute=True,
+):
     assert step < window
     assert window % step == 0
     assert X.ndim == 2
@@ -254,15 +283,11 @@ def prune(X, pos, window, step, threshold, align_chunks=True, short_circuit=Fals
     chunk_info = get_chunk_info(pos, chunk_size)
     # Create list of individual chunk sizes, which will almost always be uneven
     # due to breaks at contig boundaries
-    chunk_lens = tuple(
-        cs
-        for ci in chunk_info.chunks
-        for cs in ci.chunk_size
-    )
+    chunk_lens = tuple(cs for ci in chunk_info.chunks for cs in ci.chunk_size)
 
     # Rechunk the provided array to match assumptions made by this method
     if not align_chunks and X.chunks[0] != chunk_lens:
-        raise ValueError(f'Expected chunks {chunk_lens}, found {X.chunks[0]}')
+        raise ValueError(f"Expected chunks {chunk_lens}, found {X.chunks[0]}")
     if align_chunks:
         X = X.rechunk(chunks=(chunk_lens, X.chunks[1]))
 
@@ -271,11 +296,12 @@ def prune(X, pos, window, step, threshold, align_chunks=True, short_circuit=Fals
 
     fn = jit(_prune, nopython=True, nogil=True) if numba else _prune
     R = da.map_overlap(
-        X, fn,
+        X,
+        fn,
         window=window,
         step=step,
         overlap_depth=overlap_depth,
-        depth=(overlap_depth, 0), # No overlap in axis 1
+        depth=(overlap_depth, 0),  # No overlap in axis 1
         threshold=threshold,
         boundary=-1,
         short_circuit=short_circuit,
@@ -288,7 +314,7 @@ def prune(X, pos, window, step, threshold, align_chunks=True, short_circuit=Fals
         chunks=([v for v in X.chunks[0]], 2),
         dtype=np.float64,
         trim=False,
-        return_ld_matrix=False
+        return_ld_matrix=False,
     )
 
     # Result contains rows indices to keep in first column (block index in second)
