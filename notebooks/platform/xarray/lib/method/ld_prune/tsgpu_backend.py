@@ -4,10 +4,12 @@ from numba import cuda
 import math
 
 
-@cuda.jit(device=True)
 def _intsum(n):
     """Sum of ints up to `n`"""
-    return np.int64((n * (n + 1)) / 2.0) if n > 0 else 0
+    return np.int64((n * (n + 1)) / 2.0) if n > 0 else np.int64(0)
+
+
+_intsumd = cuda.jit(_intsum, device=True)
 
 
 @cuda.jit(device=True)
@@ -72,7 +74,7 @@ def invert_index(i, window, step):
     step = np.float64(step)
 
     # Number of pairs in a "slice" = window + (window - 1) + ... + (window - step)
-    p = _intsum(window) - _intsum(window - step)
+    p = _intsumd(window) - _intsumd(window - step)
 
     # Calculate slice number (`s`) and offset into that slice (`k`)
     s, k = np.int64(i // p), np.int64(i % p)
@@ -89,46 +91,73 @@ def invert_index(i, window, step):
     return i, j, s
 
 
-def _max_index(n_rows, window, step):
-    """Get maximum comparison index"""
-    # Calculate number of total slices * number of comparisons in each
+def num_comparisons(n_rows, window, step):
+    """Get number of comparisons implied by array size and parameters
+
+    Note that this total will count comparisons near the end of an array
+    that aren't actually possible (e.g. if the final row is at the start
+    of a slice, all `window` comparisons implied are added to total
+    even if they would be OOB).  It is easier to simply ignore these
+    cases during calculation than it is to subtract them out of the
+    indexing scheme.
+    """
+
+    # Number of pairs in each slice
+    n_pairs_per_slice = _intsum(window) - _intsum(window - step)
+
+    # Number of slices in entire array
     n_slices = n_rows // step
+
     # Determine how many pairwise comparisons are left at the edge of the array
-    n_edge = _intsum(window) - _intsum(window - (n_rows % step))
-    return n_slices + n_edge
+    n_remainder = _intsum(window) - _intsum(window - (n_rows % step))
+
+    return n_slices * n_pairs_per_slice + n_remainder
+
+
+@cuda.jit(device=True)
+def invert_offset(coords, step):
+    """Invert indexing coords to get absolute row indexes"""
+    i, j, s = coords
+    ri1 = s * step + i
+    ri2 = s * step + j
+    return ri1, ri2
 
 
 @cuda.jit
 def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_distance, out):
     """LD prune kernel"""
 
-    # Get comparison index for thread and invert
+    # Get comparison index for thread and invert to absolute row coordinates
     ci = cuda.grid(1)
     i, j, s = invert_index(ci, window, step)
+    ri1, ri2 = invert_offset((i, j, s), step)
 
-    # Set row indexes for this comparison
-    ri1 = s + i
-    ri2 = s + j
-    print(ri1, ri2)
+    # Ignore if row indexes are OOB (this is expected near final rows)
+    if ri1 >= x.shape[0] or ri2 >= x.shape[0]:
+        return
 
     # Only do the comparison if the rows are in the same "group" (e.g. contig)
-    if groups[ri1] == groups[ri2]:
+    if groups[ri1] != groups[ri2]:
+        return
 
-        # Calculate some metric comparing the rows (inner product as a test)
-        v = 0.0
-        for k in range(x.shape[1]):
-            v += x[ri1, k] * x[ri2, k]
+    # Calculate some metric comparing the rows (inner product as a test)
+    v = 0.0
+    for k in range(x.shape[1]):
+        v += x[ri1, k] * x[ri2, k]
 
-        # Set boolean indicator based on scores, if metric above threshold
-        if v > threshold:
-            # Mark the row with the lower associated score as pruned (i.e. not kept)
-            if scores[ri1] > scores[ri2]:
-                out[ri2] = False
-            elif scores[ri2] > scores[ri1]:
-                out[ri1] = False
-            # If the scores are equal, ignore the row with the highest index
-            else:
-                out[max(ri1, ri2)] = False
+    # i, j, s = coords
+    # print('global=', ci, 'i=', i, 'j=', j, 'slice=', s, 'ri1=', ri1, 'ri2=', ri2, 'v=', v)
+
+    # Set boolean indicator based on scores, if metric above threshold
+    if v >= threshold:
+        # Mark the row with the lower associated score as pruned (i.e. not kept)
+        if scores[ri1] > scores[ri2]:
+            out[ri2] = False
+        elif scores[ri2] > scores[ri1]:
+            out[ri1] = False
+        # If the scores are equal, ignore the row with the highest index
+        else:
+            out[max(ri1, ri2)] = False
 
 
 def ld_prune_gpu(x, groups, positions, threshold: float, window: int, step: int,
@@ -193,11 +222,9 @@ def ld_prune_gpu(x, groups, positions, threshold: float, window: int, step: int,
     # Output is num rows true/false vector where true = keep row
     out = cuda.to_device(np.ones(nr, dtype='bool'))
 
-    max_index = _max_index(nr, window, step)
-    print('max_index:', max_index)
+    n_tasks = num_comparisons(nr, window, step)
+    print('max_index:', n_tasks)
     kernel = _ld_prune_kernel
-    # Convenience method over kernel invocation like:
-    # fn[blocks_per_grid, threads_per_block](...)
-    kernel.forall(max_index)(x, groups, positions, scores, threshold, window, step, max_distance, out)
+    kernel.forall(n_tasks)(x, groups, positions, scores, threshold, window, step, max_distance, out)
 
     return out.copy_to_host()
