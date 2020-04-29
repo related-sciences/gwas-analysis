@@ -9,6 +9,20 @@ RUN conda env update -n rapids --file /tmp/environment.yml
 RUN apt-get update && apt-get install -y g++
 RUN /conda/envs/rapids/bin/pip install --no-cache-dir pysnptools==0.4.11
 
+# PLINK Installation
+# Adapted from: https://github.com/GELOG/plink/blob/master/plink-2.0-bin/docker/Dockerfile
+# Download is from https://www.cog-genomics.org/plink2 (version = 1.90 beta)
+RUN apt-get install -y unzip
+RUN wget -q http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20200107.zip && \
+  unzip plink_linux_x86_64_20200107.zip -d /usr/local/plink && \
+  rm plink_linux_x86_64_20200107.zip
+RUN echo '\n\
+export PLINK_HOME=/usr/local/plink\n\
+export PATH=/usr/local/plink:$PATH\n\
+' >> ~/.bashrc
+ENV PATH /usr/local/plink:$PATH
+ENV PLINK_HOME /usr/local/plink
+
 RUN mkdir -p $WORK_DIR/data $WORK_DIR/repos
 WORKDIR $WORK_DIR
 

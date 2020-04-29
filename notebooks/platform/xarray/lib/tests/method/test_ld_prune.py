@@ -65,7 +65,6 @@ class TestLDPrune(unittest.TestCase):
             else:
                 expected += window
             actual = num_comparisons(n_rows, window, step)
-            print(n_rows, case)
             self.assertEqual(actual, expected)
 
 

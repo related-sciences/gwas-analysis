@@ -1,15 +1,26 @@
 """GPU LD prune implementation for tall-skinny arrays"""
 import numpy as np
 from numba import cuda
+from . import stats
 import math
+
+# TODO: Make sure given array is C order (row-major)
+# TODO: Need to mean impute missing values (that's what Hail does)
+# TODO: Rows need to already be sorted by contig/position (add warning in docs or explicit check?)
+# TODO: Check hail vs skallel r2 definitions
+# TODO: Preload array into shared memory for comparisons within a thread block
+
+# Use integer ids to select metric functions in kernels
+# (passing functions as arguments does not work)
+METRIC_IDS = {'r2': 1}
 
 
 def _intsum(n):
     """Sum of ints up to `n`"""
     return np.int64((n * (n + 1)) / 2.0) if n > 0 else np.int64(0)
 
-
 _intsumd = cuda.jit(_intsum, device=True)
+_r2 = cuda.jit(stats.r2, device=True)
 
 
 @cuda.jit(device=True)
@@ -17,7 +28,7 @@ def invert_index(i, window, step):
     """Convert truncated squareform index back into row, col, and slice index
 
     Task indexing for LD pruning is based on several optimizations that utilize a
-    cyclic, truncated squareform pattern for pair-wise comparisons (between rows).  This pattern
+    cyclic, truncated squareform pattern for pairwise comparisons (between rows).  This pattern
     is primarily   controlled by window and step parameters, where an example for window = 4 and
     step = 3 would look like this:
 
@@ -32,10 +43,10 @@ def invert_index(i, window, step):
             6 | 7 8 9 10
             ... and so on ...
 
-    The comparison index parameter (`i`) indexes these comparisons where in the above, `i` = 0
+    The parameter (`i`) indexes these comparisons where in the above, `i` = 0
     corresponds to the comparison between rows 0 and 1, `i` = 1 to rows 0 and 2, `i` = 4
     to rows 1 and 2, etc.  This method converts this comparison index back into the
-    cycle number (called a "slice") as well as offsets within that cycle for the rows
+    cycle number (arbitrarily called a "slice") as well as offsets within that cycle for the rows
     being compared.  The slice number itself indexes some row in the original array
     and the offsets can be used to identify comparisons from that row index.
 
@@ -58,9 +69,9 @@ def invert_index(i, window, step):
     i : int
         Comparison index
     window : int
-        Window size used to define pair-wise comparisons
+        Window size used to define pairwise comparisons
     step : int
-        Step size used to define pair-wise comparisons
+        Step size used to define pairwise comparisons
 
     Returns
     -------
@@ -124,11 +135,12 @@ def invert_offset(coords, step):
 
 
 @cuda.jit
-def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_distance, out):
+def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_distance, metric_id, out):
     """LD prune kernel"""
 
     # Get comparison index for thread and invert to absolute row coordinates
     ci = cuda.grid(1)
+    # Note: values here must be unpacked or Numba will complain
     i, j, s = invert_index(ci, window, step)
     ri1, ri2 = invert_offset((i, j, s), step)
 
@@ -141,11 +153,12 @@ def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_
         return
 
     # Calculate some metric comparing the rows (inner product as a test)
-    v = 0.0
-    for k in range(x.shape[1]):
-        v += x[ri1, k] * x[ri2, k]
+    if metric_id == 1:
+        v = _r2(x[ri1], x[ri2])
+    else:
+        raise NotImplementedError('Metric not implemented')
 
-    # i, j, s = coords
+    # Debug in sim mode:
     # print('global=', ci, 'i=', i, 'j=', j, 'slice=', s, 'ri1=', ri1, 'ri2=', ri2, 'v=', v)
 
     # Set boolean indicator based on scores, if metric above threshold
@@ -160,18 +173,18 @@ def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_
             out[max(ri1, ri2)] = False
 
 
-def ld_prune_gpu(x, groups, positions, threshold: float, window: int, step: int,
-                 metric='r2', scores=None, max_distance: float = None, chunk_offset: int=0):
+def ld_prune(x, groups, positions, threshold: float, window: int, step: int,
+             metric='r2', scores=None, max_distance: float = None, chunk_offset: int=0):
     """LD prune
 
     Parameters
     ----------
-    x : array (n_rows, n_cols)
+    x : array (M, N)
         2D array of row vectors to prune
-    groups : array (n_rows)
+    groups : array (M,)
         1D array of row groupings (e.g. contig). Pruning will not occur between rows
         in different groups
-    positions : array (n_rows)
+    positions : array (M,)
         1D array of global position according to some coordinate system (e.g. genomic coordinate).
         This is only used if `max_distance` is set.
     threshold : float
@@ -182,11 +195,11 @@ def ld_prune_gpu(x, groups, positions, threshold: float, window: int, step: int,
         Step size in number of rows
     metric : str
         Name of metric to use for similarity calculations (only 'r2' at this time)
-    scores : array
+    scores : array (M,)
         1D array of scores used to choose between highly similar rows (e.g. MAF).  For rows
         with metric values
     max_distance : float
-        Maximimum distance between rows according to `position` below which they are still
+        Maximum distance between rows according to `position` below which they are still
         eligible for comparison
     chunk_offset : int
         Offset of first row in `x` within larger chunked (tall-skinny) array.  This is the sum of
@@ -194,12 +207,17 @@ def ld_prune_gpu(x, groups, positions, threshold: float, window: int, step: int,
 
     Returns
     -------
-    mask: array (n_rows)
+    mask : array (M,)
         1D boolean array indicating which rows to keep
     """
-    assert window > 0
-    assert step > 0
-    assert window >= step
+    if window < 1:
+        raise ValueError(f'Window must be >= 1 (not {window})')
+    if step < 1:
+        raise ValueError(f'Step must be >= 1 (not {step})')
+    if window < step:
+        raise ValueError(f'Window must be >= step (not window={window}, step={step})')
+    if metric not in METRIC_IDS:
+        raise ValueError(f'Metric must be in {list(METRIC_IDS.keys())} (not {metric})')
 
     # Number of rows in columns in data
     nr, nc = x.shape
@@ -222,9 +240,13 @@ def ld_prune_gpu(x, groups, positions, threshold: float, window: int, step: int,
     # Output is num rows true/false vector where true = keep row
     out = cuda.to_device(np.ones(nr, dtype='bool'))
 
+    # Determine number of pairwise row comparisons necessary
     n_tasks = num_comparisons(nr, window, step)
-    print('max_index:', n_tasks)
+
     kernel = _ld_prune_kernel
-    kernel.forall(n_tasks)(x, groups, positions, scores, threshold, window, step, max_distance, out)
+    kernel.forall(n_tasks)(
+        x, groups, positions, scores, threshold,
+        window, step, max_distance, METRIC_IDS[metric], out
+    )
 
     return out.copy_to_host()

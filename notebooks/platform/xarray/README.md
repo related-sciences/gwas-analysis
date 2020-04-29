@@ -11,7 +11,9 @@ Links:
 - [data_structures.ipynb](https://nbviewer.jupyter.org/github/related-sciences/gwas-analysis/blob/master/notebooks/platform/xarray/data_structures.ipynb) - Xarray Dataset subtype composition and accessors
 - [indexing.ipynb](https://nbviewer.jupyter.org/github/related-sciences/gwas-analysis/blob/master/notebooks/platform/xarray/indexing.ipynb) - Xarray indexing, selection, and "join" examples
 - [qc_call_rate_benchmarking.ipynb](https://nbviewer.jupyter.org/github/related-sciences/gwas-analysis/blob/master/notebooks/platform/xarray/qc_call_rate_benchmarking.ipynb) - Benchmarking of simple QC operations for comparison to Hail, Glow and PLINK
-- Note: All notebooks here don't render well on github so links point to nbviewer (use that for browsing them or they're difficult to understand)
+- [ld_prune_gpu.ipynb](https://nbviewer.jupyter.org/github/related-sciences/gwas-analysis/blob/master/notebooks/platform/xarray/ld_prune_gpu.ipynb) - A simple benchmark notebook describing performance of PLINK, jit compiled CPU, and cuda-jit GPU implementations of LD pruning on small(ish) datasets
+
+Note: All notebooks here don't render well on github so links point to nbviewer (use that for browsing them or they're difficult to understand)
 
 ### Code 
 
@@ -19,5 +21,6 @@ Links:
 - The proposed dispatching framework is in [dispatch.py](lib/dispatch.py)
 - An example PLINK backend is in [io/pysnptools_backend.py](lib/io/pysnptools_backend.py)
 - The custom numcodec filter used for bitpacking diploid, bi-allelic data is in [io/codecs.py](lib/io/codecs.py)
+- CUDA LD prune implementation [method/ld_prune/tsgpu_backend.py](lib/method/ld_prune/tsgpu_backend.py)
 
  

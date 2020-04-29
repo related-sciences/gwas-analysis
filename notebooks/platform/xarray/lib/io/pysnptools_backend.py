@@ -85,12 +85,12 @@ class PySnpToolsBackend(PLINKBackend):
     def read_fam(self, path: PathType, sep='\t'):
         import dask.dataframe as dd
         names = ['sample_id', 'fam_id', 'pat_id', 'mat_id', 'is_female', 'phenotype']
-        return dd.read_csv(str(path) + '.fam', sep=sep, names=names)
+        return dd.read_csv(str(path) + '.fam', sep=sep, names=names, storage_options=dict(auto_mkdir=False))
 
     def read_bim(self, path: PathType, sep=' '):
         import dask.dataframe as dd
         names = ['contig', 'variant_id', 'cm_pos', 'pos', 'a1', 'a2']
-        return dd.read_csv(str(path) + '.bim', sep=sep, names=names)
+        return dd.read_csv(str(path) + '.bim', sep=sep, names=names, storage_options=dict(auto_mkdir=False))
 
     def read_plink(self, path: PathType, chunks='auto', fam_sep='\t', bim_sep=' ', count_A1=True):
         import dask.array as da
