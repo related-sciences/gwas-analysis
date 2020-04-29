@@ -12,7 +12,7 @@ import math
 
 # Use integer ids to select metric functions in kernels
 # (passing functions as arguments does not work)
-METRIC_IDS = {'r2': 1}
+METRIC_IDS = {'r2': 1, 'dot': 2, 'eq': 3}
 
 
 def _intsum(n):
@@ -21,6 +21,8 @@ def _intsum(n):
 
 _intsumd = cuda.jit(_intsum, device=True)
 _r2 = cuda.jit(stats.r2, device=True)
+_dot = cuda.jit(stats.dotvec1d, device=True)
+_eq = cuda.jit(stats.eqvec1d, device=True)
 
 
 @cuda.jit(device=True)
@@ -81,6 +83,7 @@ def invert_index(i, window, step):
         s = slice number/index
     """
     assert window >= step
+    # Coerce to large float to avoid potential int overflow
     window = np.float64(window)
     step = np.float64(step)
 
@@ -149,12 +152,16 @@ def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_
         return
 
     # Only do the comparison if the rows are in the same "group" (e.g. contig)
-    if groups[ri1] != groups[ri2]:
+    if len(groups) > 0 and groups[ri1] != groups[ri2]:
         return
 
     # Calculate some metric comparing the rows (inner product as a test)
     if metric_id == 1:
         v = _r2(x[ri1], x[ri2])
+    elif metric_id == 2:
+        v = _dot(x[ri1], x[ri2])
+    elif metric_id == 3:
+        v = _eq(x[ri1], x[ri2])
     else:
         raise NotImplementedError('Metric not implemented')
 
@@ -163,14 +170,19 @@ def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_
 
     # Set boolean indicator based on scores, if metric above threshold
     if v >= threshold:
-        # Mark the row with the lower associated score as pruned (i.e. not kept)
-        if scores[ri1] > scores[ri2]:
-            out[ri2] = False
-        elif scores[ri2] > scores[ri1]:
-            out[ri1] = False
-        # If the scores are equal, ignore the row with the highest index
-        else:
+        # If no scores given, choose to keep earliest row
+        if len(scores) == 0:
             out[max(ri1, ri2)] = False
+        # Otherwise, choose based on score
+        else:
+            # Mark the row with the lower associated score as pruned (i.e. not kept)
+            if scores[ri1] > scores[ri2]:
+                out[ri2] = False
+            elif scores[ri2] > scores[ri1]:
+                out[ri1] = False
+            # If the scores are equal, choose to keep earliest row
+            else:
+                out[max(ri1, ri2)] = False
 
 
 def ld_prune(x, groups, positions, threshold: float, window: int, step: int,
@@ -194,7 +206,9 @@ def ld_prune(x, groups, positions, threshold: float, window: int, step: int,
     step : int
         Step size in number of rows
     metric : str
-        Name of metric to use for similarity calculations (only 'r2' at this time)
+        Name of metric to use for similarity calculations.
+        Must be in ['r2']. Default is 'r2'.
+        Note: 'dot' (dot product) and 'eq' (exact equality) are also available for testing/debugging purposes
     scores : array (M,)
         1D array of scores used to choose between highly similar rows (e.g. MAF).  For rows
         with metric values
@@ -223,19 +237,22 @@ def ld_prune(x, groups, positions, threshold: float, window: int, step: int,
     nr, nc = x.shape
 
     # Set argument defaults for GPU
+    # Use default arrays such that len(a) == 0, this is
+    # sentinel condition available on gpu (None doesn't work)
     if max_distance is None:
         max_distance = 0
+    if groups is None:
+        groups = np.empty(0)
     if positions is None:
-        positions = np.empty(1)
+        positions = np.empty(0)
     if scores is None:
-        scores = np.zeros(nr, dtype=np.int8)
+        scores = np.empty(0)
 
     # Move necessary data to GPU
     x = cuda.to_device(x)
     groups = cuda.to_device(groups)
     positions = cuda.to_device(positions)
-    if scores is not None:
-        scores = cuda.to_device(scores)
+    scores = cuda.to_device(scores)
 
     # Output is num rows true/false vector where true = keep row
     out = cuda.to_device(np.ones(nr, dtype='bool'))

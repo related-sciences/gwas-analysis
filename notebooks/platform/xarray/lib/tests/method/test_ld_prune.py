@@ -1,6 +1,7 @@
 import unittest
-from lib.method.ld_prune.tsgpu_backend import invert_index, num_comparisons
-
+import numpy as np
+from lib.method.ld_prune.tsgpu_backend import invert_index, invert_offset, num_comparisons, ld_prune
+import functools
 
 class TestLDPrune(unittest.TestCase):
 
@@ -66,6 +67,105 @@ class TestLDPrune(unittest.TestCase):
                 expected += window
             actual = num_comparisons(n_rows, window, step)
             self.assertEqual(actual, expected)
+
+    def test_invert_offset(self):
+        def get_rows(ci, window, step):
+            return invert_offset(invert_index(ci, window, step), step)
+
+        window, step = 1, 1
+        self.assertEqual(get_rows(0, window, step), (0, 1))
+        self.assertEqual(get_rows(1, window, step), (1, 2))
+        self.assertEqual(get_rows(2, window, step), (2, 3))
+
+        window, step = 3, 1
+        self.assertEqual(get_rows(0, window, step), (0, 1))
+        self.assertEqual(get_rows(1, window, step), (0, 2))
+        self.assertEqual(get_rows(2, window, step), (0, 3))
+        self.assertEqual(get_rows(3, window, step), (1, 2))
+
+        window, step = 4, 3
+        # ci = 0 => slice = 0 => row indexes start at 0
+        self.assertEqual(get_rows(0, window, step), (0, 1))
+        # ci = 9 => slice = 1 (first time windows moves `step`) => row indexes start at 3
+        self.assertEqual(get_rows(9, window, step), (3, 4))
+        self.assertEqual(get_rows(10, window, step), (3, 5))
+        self.assertEqual(get_rows(12, window, step), (3, 7))
+        self.assertEqual(get_rows(13, window, step), (4, 5))
+
+        window, step = 4, 2
+        # ci = 0 => slice = 0 => row indexes start at 0
+        self.assertEqual(get_rows(7, window, step), (2, 3))
+        self.assertEqual(get_rows(8, window, step), (2, 4))
+        self.assertEqual(get_rows(10, window, step), (2, 6))
+        self.assertEqual(get_rows(11, window, step), (3, 4))
+
+    def test_ld_prune_selection(self):
+        run = functools.partial(ld_prune, step=1, threshold=1, positions=None)
+
+        # 3 vectors, none eliminated
+        x = np.array([
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+        ])
+        res = run(x, window=1, metric='eq', groups=None)
+        self.assertTrue(np.all(res))
+        res = run(x, window=3, metric='eq', groups=None)
+        self.assertTrue(np.all(res))
+
+        # 3 vectors, none eliminated despite being equal b/c
+        # they're in different groups
+        x = np.array([
+            [1, 1, 1],
+            [1, 1, 1],
+            [1, 1, 1],
+        ])
+        groups = np.array([1, 2, 3])
+        res = run(x, window=1, groups=groups)
+        self.assertTrue(np.all(res))
+
+        # Larger array test for last rows that get pruned
+        x = np.zeros((1_000, 10), dtype='uint8')
+        # all rows are zero except for the last two, which are all one
+        x[-2:, :] = 1
+        res = run(x, window=1, metric='dot', groups=None)
+        # Only the final row should be marked as pruned
+        self.assertTrue(np.all(res[:-1]))
+        self.assertTrue(not res[-1])
+
+        # Test when all rows should be pruned (except first)
+        x = np.zeros((1_000, 10), dtype='uint8')
+        res = run(x, window=1, metric='eq', groups=None)
+        self.assertTrue(np.all(~res[1:]))
+        self.assertTrue(res[0])
+
+    def test_ld_prune_r2(self):
+        run = functools.partial(ld_prune, step=3, window=5, groups=None, positions=None)
+
+        # Validate that when rows are unique, no correlation is >= 1
+        x = unique_row_array((1_000, 10), 'uint8')
+        res = run(x, metric='r2', threshold=1)
+        self.assertTrue(np.all(res))
+
+        # Validate that when rows are identical, all correlation is >= 1
+        x = np.ones((1_000, 10), 'uint8')
+        res = run(x, metric='r2', threshold=1)
+        # Every row but first should be pruned
+        self.assertTrue(np.all(~res[1:]))
+        self.assertTrue(res[0])
+
+
+def unique_row_array(shape, dtype):
+    """Generate an array with unique rows"""
+    x = np.zeros(shape, dtype)
+    for i in range(x.shape[0]):
+        fmt = '{0:0' + str(x.shape[1]) + 'b}'
+        bits = list(fmt.format(i))
+        assert len(bits) == x.shape[1], \
+            f'Not enough columns present ({x.shape[1]}) to create {x.shape[0]} unique rows'
+        # Make row vector equal to bit representation of row index integer
+        x[i] = np.array(bits).astype(dtype)
+    return x
 
 
 INDEX_CASES = [
