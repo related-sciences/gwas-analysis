@@ -2,8 +2,8 @@ import math
 import numpy as np
 
 
-def r2(gn0, gn1):
-    """Rogers Huff R2
+def r(gn0, gn1):
+    """Rogers Huff R
 
     Lift from https://github.com/cggh/scikit-allel/blob/961254bd583572eed7f9bd01060e53a8648e620c/allel/opt/stats.pyx
     """
@@ -40,7 +40,11 @@ def r2(gn0, gn1):
     # compute correlation coeficient
     r = cov / math.sqrt(v0 * v1)
 
-    return r ** 2
+    return r
+
+
+def r2(gn0, gn1):
+    return r(gn0, gn1) ** 2
 
 
 def dotvec1d(v1, v2):
@@ -55,3 +59,4 @@ def eqvec1d(v1, v2):
         if v1[i] != v2[i]:
             return 0
     return 1
+

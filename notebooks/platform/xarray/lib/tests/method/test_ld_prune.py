@@ -99,6 +99,19 @@ class TestLDPrune(unittest.TestCase):
         self.assertEqual(get_rows(10, window, step), (2, 6))
         self.assertEqual(get_rows(11, window, step), (3, 4))
 
+    def test_ld_prune_groups(self):
+        run = functools.partial(ld_prune, window=3, step=1, threshold=1, positions=None)
+        # 3 vectors, none eliminated despite being equal b/c
+        # they're in different groups
+        x = np.array([
+            [1, 1, 1],
+            [1, 1, 1],
+            [1, 1, 1],
+        ])
+        groups = np.array([1, 2, 3])
+        res = run(x, groups=groups, metric='eq')
+        self.assertTrue(np.all(res))
+
     def test_ld_prune_selection(self):
         run = functools.partial(ld_prune, step=1, threshold=1, positions=None)
 
@@ -111,17 +124,6 @@ class TestLDPrune(unittest.TestCase):
         res = run(x, window=1, metric='eq', groups=None)
         self.assertTrue(np.all(res))
         res = run(x, window=3, metric='eq', groups=None)
-        self.assertTrue(np.all(res))
-
-        # 3 vectors, none eliminated despite being equal b/c
-        # they're in different groups
-        x = np.array([
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1],
-        ])
-        groups = np.array([1, 2, 3])
-        res = run(x, window=1, groups=groups)
         self.assertTrue(np.all(res))
 
         # Larger array test for last rows that get pruned
@@ -143,12 +145,16 @@ class TestLDPrune(unittest.TestCase):
         run = functools.partial(ld_prune, step=3, window=5, groups=None, positions=None)
 
         # Validate that when rows are unique, no correlation is >= 1
-        x = unique_row_array((1_000, 10), 'uint8')
-        res = run(x, metric='r2', threshold=1)
+        x = unique_row_array((100, 10), 'uint8')
+        # Note that 'r' is used rather than 'r2' because there can
+        # be unique pairs of rows with perfect negative correlation
+        res = run(x, metric='r', threshold=1)
         self.assertTrue(np.all(res))
 
         # Validate that when rows are identical, all correlation is >= 1
-        x = np.ones((1_000, 10), 'uint8')
+        x = np.zeros((100, 10), 'uint8')
+        # Make the last column all ones so each row has non-zero variance
+        x[:, -1] = 1
         res = run(x, metric='r2', threshold=1)
         # Every row but first should be pruned
         self.assertTrue(np.all(~res[1:]))

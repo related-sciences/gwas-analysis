@@ -12,17 +12,23 @@ import math
 
 # Use integer ids to select metric functions in kernels
 # (passing functions as arguments does not work)
-METRIC_IDS = {'r2': 1, 'dot': 2, 'eq': 3}
+METRIC_IDS = {'r': 1, 'r2': 2, 'dot': 3, 'eq': 4}
 
 
-def _intsum(n):
+def intsum(n):
     """Sum of ints up to `n`"""
     return np.int64((n * (n + 1)) / 2.0) if n > 0 else np.int64(0)
 
-_intsumd = cuda.jit(_intsum, device=True)
-_r2 = cuda.jit(stats.r2, device=True)
+
+_intsum = cuda.jit(intsum, device=True)
+_r = cuda.jit(stats.r, device=True)
 _dot = cuda.jit(stats.dotvec1d, device=True)
 _eq = cuda.jit(stats.eqvec1d, device=True)
+
+
+@cuda.jit(device=True)
+def _r2(gn0, gn1):
+    return _r(gn0, gn1) ** 2
 
 
 @cuda.jit(device=True)
@@ -88,7 +94,7 @@ def invert_index(i, window, step):
     step = np.float64(step)
 
     # Number of pairs in a "slice" = window + (window - 1) + ... + (window - step)
-    p = _intsumd(window) - _intsumd(window - step)
+    p = _intsum(window) - _intsum(window - step)
 
     # Calculate slice number (`s`) and offset into that slice (`k`)
     s, k = np.int64(i // p), np.int64(i % p)
@@ -105,6 +111,15 @@ def invert_index(i, window, step):
     return i, j, s
 
 
+@cuda.jit(device=True)
+def invert_offset(coords, step):
+    """Invert indexing coords to get absolute row indexes"""
+    i, j, s = coords
+    ri1 = s * step + i
+    ri2 = s * step + j
+    return ri1, ri2
+
+
 def num_comparisons(n_rows, window, step):
     """Get number of comparisons implied by array size and parameters
 
@@ -117,24 +132,15 @@ def num_comparisons(n_rows, window, step):
     """
 
     # Number of pairs in each slice
-    n_pairs_per_slice = _intsum(window) - _intsum(window - step)
+    n_pairs_per_slice = intsum(window) - intsum(window - step)
 
     # Number of slices in entire array
     n_slices = n_rows // step
 
     # Determine how many pairwise comparisons are left at the edge of the array
-    n_remainder = _intsum(window) - _intsum(window - (n_rows % step))
+    n_remainder = intsum(window) - intsum(window - (n_rows % step))
 
     return n_slices * n_pairs_per_slice + n_remainder
-
-
-@cuda.jit(device=True)
-def invert_offset(coords, step):
-    """Invert indexing coords to get absolute row indexes"""
-    i, j, s = coords
-    ri1 = s * step + i
-    ri2 = s * step + j
-    return ri1, ri2
 
 
 @cuda.jit
@@ -155,12 +161,19 @@ def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_
     if len(groups) > 0 and groups[ri1] != groups[ri2]:
         return
 
+    # Only do the comparison if the rows are within `max_distance` units of
+    # each other according to accompanying position vector
+    if len(positions) > 0 and 0 < max_distance < abs(positions[ri1] - positions[ri2]):
+        return
+
     # Calculate some metric comparing the rows (inner product as a test)
     if metric_id == 1:
-        v = _r2(x[ri1], x[ri2])
+        v = _r(x[ri1], x[ri2])
     elif metric_id == 2:
-        v = _dot(x[ri1], x[ri2])
+        v = _r2(x[ri1], x[ri2])
     elif metric_id == 3:
+        v = _dot(x[ri1], x[ri2])
+    elif metric_id == 4:
         v = _eq(x[ri1], x[ri2])
     else:
         raise NotImplementedError('Metric not implemented')
@@ -185,36 +198,42 @@ def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_
                 out[max(ri1, ri2)] = False
 
 
-def ld_prune(x, groups, positions, threshold: float, window: int, step: int,
-             metric='r2', scores=None, max_distance: float = None, chunk_offset: int=0):
+def ld_prune(x, window: int, step: int, threshold: float,
+             groups=None, positions=None, scores=None,
+             metric='r2', max_distance: float = None,
+             chunk_offset: int=0):
     """LD prune
 
     Parameters
     ----------
     x : array (M, N)
         2D array of row vectors to prune
+    window : int
+        Window size in number of rows
+    step : int
+        Step size in number of rows
+    threshold : float
+        Metric threshold (e.g. r2)
     groups : array (M,)
         1D array of row groupings (e.g. contig). Pruning will not occur between rows
         in different groups
     positions : array (M,)
         1D array of global position according to some coordinate system (e.g. genomic coordinate).
-        This is only used if `max_distance` is set.
-    threshold : float
-        Metric threshold (e.g. r2)
-    window : int
-        Window size in number of rows
-    step : int
-        Step size in number of rows
-    metric : str
-        Name of metric to use for similarity calculations.
-        Must be in ['r2']. Default is 'r2'.
-        Note: 'dot' (dot product) and 'eq' (exact equality) are also available for testing/debugging purposes
+        This is only used if `max_distance` is set.  When `groups` is specified as well, the
+        effective distance between rows in different groups is infinite so positions only
+        need to be specific to one group (e.g. genomic positions along a contig if contigs are groups).
     scores : array (M,)
         1D array of scores used to choose between highly similar rows (e.g. MAF).  For rows
         with metric values
+    metric : str
+        Name of metric to use for similarity calculations.
+        Must be in ['r', 'r2']. Default is 'r2'.  Definitions:
+            - r: row correlation in [-1, 1]
+            - r2: squared row correlation in [0, 1]
+        Note: 'dot' (dot product) and 'eq' (exact equality) are also available for testing/debugging purposes
     max_distance : float
-        Maximum distance between rows according to `position` below which they are still
-        eligible for comparison
+        Maximum distance between rows according to `positions` below which they are still
+        eligible for comparison.
     chunk_offset : int
         Offset of first row in `x` within larger chunked (tall-skinny) array.  This is the sum of
         chunk sizes for all chunks prior to the current chunk (i.e. `x`).
@@ -262,8 +281,9 @@ def ld_prune(x, groups, positions, threshold: float, window: int, step: int,
 
     kernel = _ld_prune_kernel
     kernel.forall(n_tasks)(
-        x, groups, positions, scores, threshold,
-        window, step, max_distance, METRIC_IDS[metric], out
+        x, groups=groups, positions=positions, scores=scores, threshold=threshold,
+        window=window, step=step, max_distance=max_distance, metric_id=METRIC_IDS[metric],
+        out=out
     )
 
     return out.copy_to_host()

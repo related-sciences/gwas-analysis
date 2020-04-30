@@ -20,8 +20,10 @@ docker build -t gwas-analysis-proto-gpu -f Dockerfile.proto.gpu .
 To run:
 
 ```
-docker run --gpus all --rm -it -p 8890:8888 -p 8777:8787 -p 8776:8786 \
+docker run --gpus all --rm -it -p 8891:8888 -p 8890:8887 -p 8777:8787 -p 8776:8786 \
+--name gwas-analysis-proto-gpu \
 -v /data/disk1/dev:/lab/data \
--v /home/$USER/repos/rs/gwas-analysis:/lab/repos/gwas-analysis \
+-v $HOME/repos/rs/gwas-analysis:/lab/repos/gwas-analysis \
 gwas-analysis-proto-gpu
 ```
+
