@@ -4,6 +4,7 @@ ARG WORK_DIR=/lab
 # Install conda dependencies
 COPY environment.yml /tmp/
 RUN conda env update -n rapids --file /tmp/environment.yml
+RUN PATH=/conda/envs/rapids/bin/:$PATH bash -c 'jupyter labextension install dask-labextension'
 
 # Install pysnptools separately (does not work as pip install with conda env update)
 RUN apt-get update && apt-get install -y g++

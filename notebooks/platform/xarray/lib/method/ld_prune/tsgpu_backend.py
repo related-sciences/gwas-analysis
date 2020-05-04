@@ -1,4 +1,28 @@
-"""GPU LD prune implementation for tall-skinny arrays"""
+"""GPU LD prune implementation for tall-skinny arrays
+
+This method operates in a similar manner to PLINK (--index-pairwise window step), however
+variant selection within windows is independent.  In other words, this method will
+prune a larger number of variants and the order in which that pruning occurs is arbitrary.
+
+The method works by making comparisons between rows of a call matrix in a given window,
+with some configurable number of steps between those windows.  When two rows are found
+that exceed some LD threshold, one of the variants associated with a row is eliminated.
+This choice can be controlled by providing a `score` (typically MAF), or it will
+be made arbitrarily, always choosing to keep the first variant in genome order.
+
+The time complexity of the method can be summarized as follows:
+
+Assume:
+m = num variants
+n = num samples
+w = window size
+s = step size
+intsum(x) = x * (x + 1) / 2
+
+Then for all w >= s,
+runtime complexity = (intsum(w) - intsum(w - s)) * 2n * (m / s) = O(wnm)
+* The worst case is when s = 1
+"""
 import numpy as np
 from numba import cuda
 from . import stats
@@ -166,7 +190,7 @@ def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_
     if len(positions) > 0 and 0 < max_distance < abs(positions[ri1] - positions[ri2]):
         return
 
-    # Calculate some metric comparing the rows (inner product as a test)
+    # Calculate some metric comparing the rows
     if metric_id == 1:
         v = _r(x[ri1], x[ri2])
     elif metric_id == 2:
