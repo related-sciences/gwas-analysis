@@ -6,6 +6,10 @@ COPY environment.yml /tmp/
 RUN conda env update -n rapids --file /tmp/environment.yml
 RUN PATH=/conda/envs/rapids/bin/:$PATH bash -c 'jupyter labextension install dask-labextension'
 
+# Install test/ci dependencies
+COPY environment.ci.yml /tmp/
+RUN conda env update -n rapids --file /tmp/environment.ci.yml
+
 # Install pysnptools separately (does not work as pip install with conda env update)
 RUN apt-get update && apt-get install -y g++
 RUN /conda/envs/rapids/bin/pip install --no-cache-dir pysnptools==0.4.11
@@ -46,5 +50,8 @@ ENV NB_DIR $REPO_DIR/notebooks
 ENV JUPYTERLAB_PORT 8888
 ENV CODESERVER_PORT 8887
 ENV SHELL /bin/bash
+
+# As a temporary workaround until this project has its own repo, put the conda on the PYTHONPATH for the environment
+RUN echo "$WORK_DIR/repos/gwas-analysis/notebooks/platform/xarray" >> /conda/envs/rapids/lib/python3.7/site-packages/local.pth
 
 CMD /bin/bash init.sh && /bin/bash

@@ -1,0 +1,7 @@
+channels:
+- defaults
+dependencies:
+- pytest
+- hypothesis
+- black
+- flake8
