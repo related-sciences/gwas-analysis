@@ -1,4 +1,4 @@
-from lib.method.interval import axis_intervals
+from lib.stats.interval import axis_intervals
 import numpy as np
 import math
 import pytest
@@ -86,7 +86,7 @@ def test_window4_step2(target_chunk_size):
 @pytest.mark.parametrize("step,window", [(0, 1), (-1, 0), (-1, -1), (1, 0), (1, -1), (3, 2)])
 def test_raise_on_bad_step_or_window(step, window):
     with pytest.raises(ValueError):
-        ais_df(n=10, step=step, window=window)
+        axis_intervals(n=10, step=step, window=window) 
 
 @pytest.mark.parametrize("target_chunk_size", [None, 3, 1])
 def test_window_by_position(target_chunk_size):
@@ -100,7 +100,19 @@ def test_window_by_position(target_chunk_size):
 def test_window_by_position_with_groups(target_chunk_size):
     n = 6
     # 1st is on its own, 2nd-4th are within window but broken by group, last two are together
-    positions = np.array([1, 5, 6, 7, 11, 12])
+    # Note that position decreses at group break
+    positions = np.array([1, 5, 6, 4, 8, 9])
     groups = np.array([1, 1, 1, 2, 2, 2])
     ais, cis = ais_df(n=n, window=3, positions=positions, groups=groups, target_chunk_size=target_chunk_size) 
     assert ais['count'].tolist() == [1, 2, 1, 1, 2, 1]
+
+
+def test_raise_on_non_monotonic_positions():
+        with pytest.raises(ValueError):
+            positions = np.array([1, 2, 3, 1, 2, 3])
+            axis_intervals(window=1, positions=positions) 
+
+        with pytest.raises(ValueError):
+            positions = np.array([3, 2, 1, 3, 2, 1])
+            groups = np.array([1, 1, 1, 2, 2, 2])
+            axis_intervals(window=1, positions=positions, groups=groups) 
