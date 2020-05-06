@@ -25,7 +25,8 @@ runtime complexity = (intsum(w) - intsum(w - s)) * 2n * (m / s) = O(wnm)
 """
 import numpy as np
 from numba import cuda
-from . import stats
+from ...stats import math as gmath
+from .utils import dotvec1d, eqvec1d
 import math
 
 # TODO: Make sure given array is C order (row-major)
@@ -45,9 +46,9 @@ def intsum(n):
 
 
 _intsum = cuda.jit(intsum, device=True)
-_r = cuda.jit(stats.r, device=True)
-_dot = cuda.jit(stats.dotvec1d, device=True)
-_eq = cuda.jit(stats.eqvec1d, device=True)
+_r = cuda.jit(gmath.r, device=True)
+_dot = cuda.jit(dotvec1d, device=True)
+_eq = cuda.jit(eqvec1d, device=True)
 
 
 @cuda.jit(device=True)
