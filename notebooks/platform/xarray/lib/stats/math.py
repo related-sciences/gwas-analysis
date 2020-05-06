@@ -45,3 +45,4 @@ def r(gn0, gn1):
 
 def r2(gn0, gn1):
     return r(gn0, gn1) ** 2
+
