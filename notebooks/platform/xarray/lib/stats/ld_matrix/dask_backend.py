@@ -3,7 +3,7 @@ from ..interval import axis_intervals
 import numpy as np
 
 
-def get_ld_matrix_partitions(x, ais, cis, threshold, scores=None, index_dtype=np.int32, value_dtype=np.float32):
+def get_ld_matrix_partitions(x, ais, cis, threshold, scores=None, index_dtype=np.int32, value_dtype=np.float32, **kwargs):
     import dask
     import dask.dataframe as dd
 
@@ -17,13 +17,14 @@ def get_ld_matrix_partitions(x, ais, cis, threshold, scores=None, index_dtype=np
         if scores is not None:
             arrays['scores'] = scores[r['min_start']:r['max_stop']]
         # TODO: Make this call through a frontend dispatcher for the stats package instead
+        # (this is one place where a user should potentially have control over what happens)
         f = dask.delayed(cuda_backend.ld_matrix)(
             **arrays, 
             min_threshold=threshold, 
             return_value=True, 
             index_dtype=index_dtype, 
             value_dtype=value_dtype,
-            lock=False
+            **kwargs
         )
         meta = [
             ('i', index_dtype),
@@ -45,7 +46,7 @@ def get_ld_matrix_dataframe(partitions):
         for group, df in partitions.items()
     ])
 
-def ld_matrix(x, window, threshold=None, step=None, groups=None, positions=None, scores=None, target_chunk_size=None, return_intervals=False):
+def ld_matrix(x, window, threshold=None, step=None, groups=None, positions=None, scores=None, target_chunk_size=None, return_intervals=False, **kwargs):
     n = x.shape[0]
 
     # Compute row intervals as well as any necessary overlap
@@ -53,7 +54,7 @@ def ld_matrix(x, window, threshold=None, step=None, groups=None, positions=None,
 
     # Get partitions representing the result of each chunked computation, which is at least
     # broken up by `groups` if provided (possibly more if `target_chunk_size` set)
-    partitions = get_ld_matrix_partitions(x, ais, cis, threshold, scores=scores)
+    partitions = get_ld_matrix_partitions(x, ais, cis, threshold, scores=scores, **kwargs)
 
     # Concatenate partitions noting that each partition represents ALL data
     # for any one group (e.g. chromosome)

@@ -1,4 +1,4 @@
-from lib.method.ld_prune.tsgpu_backend import invert_index, invert_offset, num_comparisons, ld_prune
+from lib.method.ld_prune.tspis.cuda_backend import invert_index, invert_offset, num_comparisons, ld_prune
 import numpy as np
 import functools
 

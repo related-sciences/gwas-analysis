@@ -211,7 +211,7 @@ def axis_intervals(window: int, groups=None, positions=None, step: Optional[int]
     # but empty arrays will be used instead (as sentinel values) for brevity
     # See: https://github.com/numba/numba/issues/3585
     def asarray(x):
-        return np.empty(0) if x is None else np.asarray(x)
+        return np.empty(0, dtype=dtype) if x is None else np.asarray(x)
     groups = asarray(groups)
     positions = asarray(positions)
 

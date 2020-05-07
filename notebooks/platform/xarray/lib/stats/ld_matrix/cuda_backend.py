@@ -37,6 +37,7 @@ def _ld_kernel(x, ais, cts, scores, offset, out_idx, out_res, out_cmp):
         i1, i2 = index - offset, other - offset
         assert 0 <= i1 < n
         assert 0 <= i2 < n
+
         if i1 == i2:
             res = 1.0
         else:
@@ -55,7 +56,7 @@ def _ld_kernel(x, ais, cts, scores, offset, out_idx, out_res, out_cmp):
                 out_cmp[idx] = 0
 
 
-def _run_kernel(x, ais, ci, scores, index_dtype, value_dtype):
+def _run_kernel(x, ais, ci, scores, index_dtype, value_dtype, value_init):
     ci = ChunkInterval(*ci)
     n_tasks = len(ais)
     n_pairs = ci.count
@@ -73,14 +74,13 @@ def _run_kernel(x, ais, ci, scores, index_dtype, value_dtype):
         out_cmp = cuda.to_device(np.empty(0))
 
     out_idx = cuda.to_device(np.empty((n_pairs, 2), dtype=index_dtype))
-    # TODO: remove this default value when ready (come up with a better way to assert exhaustive comparisons)
-    out_res = cuda.to_device(np.full(n_pairs, -99, dtype=value_dtype))
+    out_res = cuda.to_device(np.full(n_pairs, value_init, dtype=value_dtype))
 
     _ld_kernel.forall(n_tasks)(x, ais, cts, scores, offset, out_idx, out_res, out_cmp)
 
     return out_idx.copy_to_host(), out_res.copy_to_host(), out_cmp.copy_to_host()
 
-def ld_matrix(x, axis_intervals, chunk_interval, scores=None, index_dtype=np.int32, value_dtype=np.float32, min_threshold=None, return_value=True, lock=False):
+def ld_matrix(x, axis_intervals, chunk_interval, scores=None, index_dtype=np.int32, value_dtype=np.float32, min_threshold=None, return_value=True, **kwargs):
     # `axis_intervals` have ranges for rows i to j
     # `x` has overlap and should contain more rows than axis intervals
     # `chunk_interval` should have single row
@@ -89,14 +89,21 @@ def ld_matrix(x, axis_intervals, chunk_interval, scores=None, index_dtype=np.int
     assert x.shape[0] >= axis_intervals.shape[0]
     if scores is not None:
         assert x.shape[0] == scores.shape[0]
+    chunk_interval = chunk_interval[0]
 
     # TODO: Find a better way to synchronize for external resources
-    # This intermittently breaks with errors like "Failed to acquire" on lock.release()
-    # ctx = Lock('gpu') if lock else contextlib.suppress()
-    # with ctx:
-    idx, res, cmp = _run_kernel(x, axis_intervals, chunk_interval[0], scores, index_dtype, value_dtype)
-    # TODO: remove this
-    assert np.all(np.nan_to_num(res) > -99)
+    # This intermittently breaks with errors like "Failed to acquire" on lock.release():
+    # ctx = Lock('gpu') if 'lock' in kwargs and kwargs['lock'] else contextlib.suppress(); with ctx: ...
+    idx, res, cmp = _run_kernel(
+        x, 
+        axis_intervals, 
+        chunk_interval, 
+        scores, 
+        index_dtype, 
+        value_dtype, 
+        # Pair array initial value parameterized mainly for testing
+        value_init=kwargs.get('value_init', np.nan)
+    )
 
     if min_threshold is not None:
         mask = res >= min_threshold
