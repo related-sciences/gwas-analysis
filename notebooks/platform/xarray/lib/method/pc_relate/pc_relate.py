@@ -8,7 +8,7 @@ T_ARRAY = Union[dask.array.Array, np.ndarray]
 
 def gramian(a: T_ARRAY) -> T_ARRAY:
     """Returns gramian matrix of the given matrix"""
-    return da.dot(a.T, a)
+    return a.T.dot(a)
 
 
 def __clip_mu_maf(mu: T_ARRAY, maf: float) -> T_ARRAY:
@@ -43,10 +43,12 @@ def pc_relate(pcs: T_ARRAY,
     # is a length D vector of regression coefficients for each of the PCs
     # TODO: rechunk needs to go
     pcsi = da.concatenate([da.from_array(np.ones((1, pcs.shape[1]))), pcs], axis=0).rechunk()
+    # TODO (rav): qr is likely not going to scale given the requirements of the current
+    #             implementation
     q, r = da.linalg.qr(pcsi.T)
     # mu, eq: 3
-    half_beta = da.matmul(da.matmul(da.linalg.inv(2 * r), q.T), g.T)
-    mu = da.matmul(pcsi.T, half_beta).T
+    half_beta = da.linalg.inv(2 * r).dot(q.T).dot(g.T)
+    mu = pcsi.T.dot(half_beta).T
     # phi, eq: 4
     clipped_mu = mu.map_blocks(lambda i: __clip_mu_maf(i, maf))
     variance = clipped_mu.map_blocks(lambda i: i * (1.0 - i))
