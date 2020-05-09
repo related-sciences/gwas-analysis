@@ -1,36 +1,13 @@
-"""I/O backend implementations and configuration"""
-from ..dispatch import FrontendDispatcher, ClassBackend, Domain
+"""I/O API"""
+from ..dispatch import register_function
 from ..core import isdstype, GenotypeCountDataset
 from xarray import Dataset
 
-DOMAIN = Domain('io')
-PLINK_DOMAIN = DOMAIN.append('plink')
 
-# ----------------------------------------------------------------------
-# IO API
+PLINK_DOMAIN = 'io.plink'
 
 
-class IOBackend(ClassBackend):
-    domain = DOMAIN
-
-
-class PLINKBackend(IOBackend):
-    domain = PLINK_DOMAIN
-
-
-dispatchers = dict()
-
-
-def dispatch(domain):
-    if domain not in dispatchers:
-        dispatchers[domain] = FrontendDispatcher(DOMAIN.append(domain))
-
-    def decorator(fn):
-        return dispatchers[domain].add(fn)
-    return decorator
-
-
-@dispatch('plink')
+@register_function(PLINK_DOMAIN)
 def read_plink(path, backend=None, **kwargs):
     """Import PLINK dataset"""
     pass
@@ -47,9 +24,3 @@ def write_zarr(ds: Dataset, path, **kwargs):
 
     return ds.to_zarr(path, **kwargs)
 
-# ----------------------------------------------------------------------
-# IO Backend Registration
-
-
-def register_backend(backend: IOBackend):
-    dispatchers[backend.domain[-1]].register(backend)

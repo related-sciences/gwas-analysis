@@ -1,6 +1,6 @@
 from __future__ import annotations
 import functools
-from typing import Hashable, Callable, Union, Sequence
+from typing import Hashable, Callable, Union, Sequence, Dict, Type
 from typing_extensions import Protocol
 from .config import Configuration
 from .config import config as global_config
@@ -47,12 +47,7 @@ class Dispatchable(Protocol):
     def dispatch(self, fn: Callable, *args, **kwargs): ...
 
 
-class Frontend(Dispatchable):
-    domain: Domain
-
-
 class Backend(Dispatchable):
-    domain: Domain
     id: Hashable
 
     def requirements(self) -> Sequence[Requirement]: ...
@@ -93,8 +88,8 @@ def is_compatible(backend: Backend):
     return True
 
 
-class FrontendDispatcher(Frontend):
-    """Base model for all Frontend instances with default logic for backend selection"""
+class Dispatcher(Dispatchable):
+    """Default dispatch model"""
 
     def __init__(self, domain: Union[str, Domain], config: Configuration = None):
         self.domain = Domain(domain)
@@ -107,12 +102,16 @@ class FrontendDispatcher(Frontend):
         key = str(self.domain.append('backend'))
         self.config.register(key, default, f'Options: {options}; default is {default}')
 
-    def register(self, backend: Backend) -> None:
-        # Only allow frontends to work with backends on the same domain
-        if not backend.domain == self.domain:
-            raise ValueError('Backend with domain {backend.domain} not compatible with frontend domain {self.domain}')
+    def register_function(self, fn: Callable) -> Callable:
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            return self.dispatch(fn, *args, **kwargs)
+        return wrapper
+
+    def register_backend(self, backend: Backend) -> Backend:
         self.backends[backend.id] = backend
         self._update_config()
+        return backend
 
     def resolve(self, fn: Callable, *args, **kwargs) -> Backend:
         # Passed parameters get highest priority
@@ -137,8 +136,32 @@ class FrontendDispatcher(Frontend):
         kwargs.pop('backend', None)  # Pop this off since implementations cannot expect it
         return backend.dispatch(fn, *args, **kwargs)
 
-    def add(self, fn: Callable):
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            return self.dispatch(fn, *args, **kwargs)
-        return wrapper
+
+# ----------------------------------------------------------------------
+# Registry
+#
+# These functions define the sole interaction points for all 
+# frontend/backend coordination across the project
+
+dispatchers: Dict[Domain, Dispatchable] = dict()
+
+def register_function(domain):
+    domain = Domain(domain)
+    if domain not in dispatchers:
+        dispatchers[domain] = Dispatcher(domain)
+        
+    def register(fn: Callable):
+        return dispatchers[domain].register_function(fn)
+    return register
+
+
+def register_backend(domain):
+    domain = Domain(domain) 
+    if domain not in dispatchers:
+        raise NotImplementedError('Dispatcher for domain {domain} not implemented')
+
+    def register(backend: Union[Backend, Type[Backend]]):
+        instance = backend() if isinstance(backend, type) else backend
+        dispatchers[domain].register_backend(instance)
+        return backend
+    return register

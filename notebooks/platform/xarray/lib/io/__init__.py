@@ -1,4 +1,6 @@
-from lib.io.core import *
+from .core import *
 
-# Choose the backends to register
-import lib.io.pysnptools_backend
+try:
+    from . import pysnptools_backend
+except ImportError:
+    pass
