@@ -168,6 +168,7 @@ class GenotypeCallDataset(GeneticDataset):
         data = _mask(ds.assign(data=ds.data[..., contig]))
         return _transmute(HaplotypeCallDataset.create, ds, data)
 
+    # pylint: disable=function-redefined
     @staticmethod
     @transmutation(GenotypeCountDataset)
     def to(ds: Dataset) -> Dataset:
@@ -268,10 +269,11 @@ class DatasetTransmutationAccessor():
             setattr(self, name, ifn)
         for dstype, fn in GeneticDataset.transmutations[ds.type].items():
             add_fn(to_snake_case(dstype), fn, ds)
+        # Add transmutation to same type (returns self)
+        add_fn(to_snake_case(ds.type), lambda _: ds, ds)
         self.ds = ds
 
     def retyped(self):
         """Get Dataset with guaranteed type assignment"""
         return self.ds
 
-# ----------------------------------------------------------------------

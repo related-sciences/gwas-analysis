@@ -3,8 +3,9 @@ import xarray as xr
 from pathlib import Path
 from .. import core
 from ..typing import PathType
-from .core import register_backend, PLINKBackend
 from ..compat import Requirement
+from ..dispatch import ClassBackend, register_backend
+from .core import PLINK_DOMAIN
 
 
 class BedReader(object):
@@ -73,7 +74,8 @@ def _dd_to_dataset(df, dim):
 
 
 # TODO: Make dask usage optional
-class PySnpToolsBackend(PLINKBackend):
+@register_backend(PLINK_DOMAIN)
+class PySnpToolsBackend(ClassBackend):
 
     id = 'pysnptools'
 
@@ -109,6 +111,7 @@ class PySnpToolsBackend(PLINKBackend):
             chunks=chunks, lock=False, asarray=False,
             name=_array_name(self.read_plink, path)
         )
+        # pylint: disable=no-member
         ds = core.create_genotype_count_dataset(arr)
 
         # Create variant/sample datasets from dataframes
@@ -119,7 +122,4 @@ class PySnpToolsBackend(PLINKBackend):
         return ds.merge(ds_fam).merge(ds_bim)
 
     def requirements(self):
-        return [Requirement('pysnptools')]
-
-
-register_backend(PySnpToolsBackend())
+        return [Requirement('pysnptools'), Requirement('dask')]

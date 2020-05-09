@@ -5,8 +5,8 @@ from multipledispatch import dispatch
 from .compat import numpy_array_type, dask_array_type, xarray_array_type
 from .utils import get_base_module
 
-dispatch_namespace = dict()
-dispatch = partial(dispatch, namespace=dispatch_namespace)
+namespace = dict()
+dispatch = partial(dispatch, namespace=namespace)
 
 @dispatch(numpy_array_type)
 def get_mask_array(data):

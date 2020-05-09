@@ -3,6 +3,7 @@ import distutils
 from dataclasses import dataclass
 from typing import Optional
 import numpy as np
+import pandas as pd
 import xarray as xr
 from xarray.core.pycompat import dask_array_type, sparse_array_type
 
@@ -27,10 +28,23 @@ cuda_installed = try_import(import_cuda)
 
 if cuda_installed:
     import numba.cuda.cudadrv.devicearray as ca
-
     cuda_array_type = (ca.DeviceNDArray,)
 else:
     cuda_array_type = ()
+
+
+def import_dask_dataframe():
+    import dask.dataframe
+
+dask_dataframe_installed = try_import(import_dask_dataframe)
+
+if dask_dataframe_installed:
+    import dask.dataframe as dd
+    dask_dataframe_type = (dd.DataFrame,)
+else:
+    dask_dataframe_type = ()
+
+pandas_dataframe_type = (pd.DataFrame,)
 
 
 @dataclass
