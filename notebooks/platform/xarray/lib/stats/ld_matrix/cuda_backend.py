@@ -2,6 +2,7 @@ from numba import cuda
 import numpy as np
 import xarray as xr
 import contextlib
+from pandas import DataFrame
 from dask.distributed import Lock
 from ..interval import axis_interval_fields as aif, ChunkInterval
 from .. import cuda_math as gmath
@@ -16,6 +17,8 @@ AIF_IDX_COUNT = aif.index('count')
 @cuda.jit
 def _ld_kernel(x, ais, cts, scores, offset, out_idx, out_res, out_cmp):
     n = x.shape[0]
+    
+    # pylint: disable=not-callable
     ti = cuda.grid(1)
 
     if ti >= ais.shape[0]:
@@ -80,10 +83,43 @@ def _run_kernel(x, ais, ci, scores, index_dtype, value_dtype, value_init):
 
     return out_idx.copy_to_host(), out_res.copy_to_host(), out_cmp.copy_to_host()
 
-def ld_matrix(x, axis_intervals, chunk_interval, scores=None, index_dtype=np.int32, value_dtype=np.float32, min_threshold=None, return_value=True, **kwargs):
-    # `axis_intervals` have ranges for rows i to j
-    # `x` has overlap and should contain more rows than axis intervals
-    # `chunk_interval` should have single row
+def ld_matrix(
+    x, 
+    axis_intervals, 
+    chunk_interval, 
+    scores=None, 
+    index_dtype=np.int32, 
+    value_dtype=np.float32, 
+    min_threshold: float=None, 
+    return_value: bool=True, 
+    **kwargs
+):
+    """Compute LD matrix for predefined axis and chunk intervals
+
+    TODO: Unify with core.ld_matrix
+
+    Parameters
+    ----------
+    x : array-like
+        2D array of allele counts
+    axis_intervals : DataFrame
+        Table describing row windows
+    chunk_interval : DataFrame
+        Table describing chunks and necessary overlap
+    scores : array-like, optional
+        Scores used to include for comparator evaluation, by default None.
+        When provided, an extra field `cmp` is added with -1, 0, or 1 
+        indicating the result of score comparison for any one pair.
+    index_dtype : np.dtype, optional
+        Array index data type, by default np.int32
+    value_dtype : np.dtype, optional
+        R2 (correlation) value data type, by default np.float32
+    min_threshold : float, optional
+        Minimum threshold below which no rows are returned, by default None.
+    return_value : bool
+        Whether or not to include the actual R2 value in results, by default 
+        True.
+    """
     assert chunk_interval.shape[0] == 1
     assert chunk_interval.ndim == 2
     assert x.shape[0] >= axis_intervals.shape[0]
