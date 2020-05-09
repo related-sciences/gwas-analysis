@@ -2,7 +2,7 @@
   "argv": [
     "/bin/sh",
     "-c",
-    "java -Xss2m -Xmx64g -jar $HOME/.local/share/jupyter/kernels/scala/launcher.jar --extra-repository https://jitpack.io --metabrowse true --connection-file {connection_file}"
+    "java -Xss2m -Xmx100g -jar $HOME/.local/share/jupyter/kernels/scala/launcher.jar --extra-repository https://jitpack.io --metabrowse true --connection-file {connection_file}"
   ],
   "display_name": "Scala",
   "language": "scala"

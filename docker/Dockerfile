@@ -79,7 +79,7 @@ RUN curl -sL --retry 3 \
 # Default the driver memory to something very large since the purpose of this container is to run local mode tests
 # Note: This is crucial for making hail work by default in local mode
 RUN cp $SPARK_HOME/conf/spark-env.sh.template $SPARK_HOME/conf/spark-env.sh && \
-  echo "export SPARK_DRIVER_MEMORY=64G" >> $SPARK_HOME/conf/spark-env.sh
+  echo "export SPARK_DRIVER_MEMORY=100G" >> $SPARK_HOME/conf/spark-env.sh
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Conda Initialization
