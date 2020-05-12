@@ -35,6 +35,9 @@ RUN ln -s $PWD/code-server-3.2.0-linux-x86_64/code-server /usr/local/bin/code-se
 RUN code-server --install-extension ms-python.python && \
     code-server --install-extension njpwerner.autodocstring
 
+# Dask labextension config 
+COPY labextension.yaml $HOME/.config/dask/labextension.yaml
+
 RUN mkdir -p $WORK_DIR/data $WORK_DIR/repos $WORK_DIR/logs
 WORKDIR $WORK_DIR
 

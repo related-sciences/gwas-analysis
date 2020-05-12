@@ -1,31 +1,27 @@
 from xarray import Dataset
 from typing import Optional
 import dask.dataframe as dd
-from dask.dataframe import DataFrame
-from ...dispatch import ClassBackend, register_backend
-from ...graph.core import maximal_independent_set
-from ..core import DOMAIN
+from ...dispatch import DaskBackend, dispatches_from
+from ...graph.maximal_independent_set import numba_backend
+from ...typing import DataFrame
+from .. import core
 
  
-@register_backend(DOMAIN)
-class DaskBackend(ClassBackend):
+@dispatches_from(core.ld_prune)
+def ld_prune(
+    ldm: DataFrame,
+    use_cmp: bool = True,
+    **kwargs
+) -> DataFrame:
+    """LD Prune (Dask)
 
-    id = 'dask'
+    See `method.core.ld_prune` for documentation.
+    """
+    if not use_cmp and 'cmp' in ldm:
+        ldm = ldm.drop(['cmp'], axis=1)
+    def func(df):
+        ds = numba_backend.maximal_independent_set(df)
+        return ds.to_dataframe()
+    return dd.map_partitions(func, ldm, meta=[('index_to_drop', ldm.dtypes['i'])])
 
-    def ld_prune(
-        self,
-        ldm: DataFrame,
-        use_cmp: bool = True
-    ):
-        """LD Prune (Dask)
-
-        See `method.core.ld_prune` for documentation.
-        """
-        df = dd.map_partitions(maximal_independent_set, ldm, meta=[('index_to_drop', ldm.dtypes['i'])])
-        return df['index_to_drop'].values
-
-
-
-
-
-
+core.register_backend_function(DaskBackend)(ld_prune)

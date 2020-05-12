@@ -3,16 +3,20 @@ import dask
 import dask.dataframe as dd
 from dask.dataframe import DataFrame
 from xarray import Dataset
-from typing import Optional
-from ...dispatch import ClassBackend, register_backend
-from ..core import DOMAIN
-from ..interval import axis_intervals
+from typing import Optional, Tuple
+from ...dispatch import DaskBackend, dispatches_from
+from ...dask_ext import dataframe_to_dataset
+from .. import core
+from ..axis_intervals import numba_backend
 from . import cuda_backend
 
 
 def get_ld_matrix_partitions(x, ais, cis, threshold, scores=None, index_dtype=np.int32, value_dtype=np.float32, **kwargs):
+    cis = cis.to_dataset('var').to_dataframe()
 
-    df = cis.to_dataset('var').to_dataframe()
+    # For each chunk definition (an overlapping block), creating
+    # slices on the data arrays needed to compute comparisons 
+    # within the chunk
     def to_ld_df(r, chunk_index):
         arrays = dict(
             x=x[r['min_start']:r['max_stop']],
@@ -21,8 +25,7 @@ def get_ld_matrix_partitions(x, ais, cis, threshold, scores=None, index_dtype=np
         )
         if scores is not None:
             arrays['scores'] = scores[r['min_start']:r['max_stop']]
-        # TODO: Make this call through a frontend dispatcher for the stats package instead
-        # (this is one place where a user should potentially have control over what happens)
+        # TODO: Make this call through a frontend dispatcher instead
         f = dask.delayed(cuda_backend.ld_matrix)(
             **arrays, 
             min_threshold=threshold, 
@@ -41,7 +44,7 @@ def get_ld_matrix_partitions(x, ais, cis, threshold, scores=None, index_dtype=np
         return dd.from_delayed([f], meta=meta)
     return {
         k: dd.concat([to_ld_df(r, i) for i, r in g.iterrows()])
-        for k, g in df.groupby('group')
+        for k, g in cis.groupby('group')
     }
 
 def get_ld_matrix_dataframe(partitions):
@@ -52,78 +55,44 @@ def get_ld_matrix_dataframe(partitions):
     ])
 
 
-@register_backend(DOMAIN)
-class DaskBackend(ClassBackend):
+@dispatches_from(core.ld_matrix)
+def ld_matrix(
+    ds: Dataset,
+    intervals: Optional[Tuple[Dataset, Dataset]]=None,
+    threshold: Optional[float]=0.2,
+    scores=None,
+    **kwargs
+):
+    """Dask backend for LD matrix 
+    
+    See `api.ld_matrix` for documentation.
 
-    id = 'dask'
+    Extra parameters added by this backend:
 
-    def ld_matrix(
-        self,
-        ds: Dataset,
-        window: int = 1_000_000, 
-        threshold: float = 0.2,
-        step: Optional[int] = None, 
-        groups='contig', 
-        positions='pos', 
-        scores=None,
-        return_intervals=False, 
-        target_chunk_size=None,
-        **kwargs
-    ):
-        """Dask backend for LD matrix 
-        
-        See `api.ld_matrix` for documentation.
+    Parameters
+    ----------
+    target_chunk_size : [type], optional
+        Determines the approximate size of each chunk passed to blockwise computations.  
+        This only controls the block heights while the widths are fixed by the number of 
+        samples, so this height should be set accordingly for the underlying backend
+        (e.g. cuda/numpy).
+    """
+    # This will coerce any dataset provided to the correct format
+    # (if the coercion is supported by whatever dataset type was given)
+    ds = ds.to.genotype_count_dataset()
 
-        Extra parameters added by this backend:
+    # 2D array of allele counts
+    x = ds.data
 
-        Parameters
-        ----------
-        target_chunk_size : [type], optional
-            Determines the approximate size of each chunk passed to blockwise computations.  
-            This only controls the block heights while the widths are fixed by the number of 
-            samples, so this height should be set accordingly for the underlying backend
-            (e.g. cuda/numpy).
-        """
-        # This will coerce any dataset provided to the correct format
-        # (if the coercion is supported by whatever dataset type was given)
-        ds = ds.to.genotype_count_dataset()
+    # Get partitions representing the result of each chunked computation, which is at least
+    # broken up by `groups` if provided (possibly more if `target_chunk_size` set)
+    ais, cis = intervals
+    partitions = get_ld_matrix_partitions(x, ais, cis, threshold, scores=scores, **kwargs)
 
-        # 2D array of allele counts
-        x = ds.data
+    # Concatenate partitions noting that each partition represents ALL data
+    # for any one group (e.g. chromosome)
+    ldm = get_ld_matrix_dataframe(partitions)
 
-        # Resolve arguments to individual (optional) vectors
-        def resolve(f):
-            if f is None:
-                return None
-            if isinstance(f, str):
-                return ds[f]
-            return f
-        groups = resolve(groups)
-        positions = resolve(positions)
-        scores = resolve(scores)
+    return ldm
 
-        if positions is not None and step is not None:
-            raise ValueError(
-                'One of `positions` or `step` should be set but not both '
-                '(`step` is only applicable to fixed windows, not those based on physical positions).'
-            )
-
-        # Compute row intervals as well as any necessary overlap
-        ais, cis = axis_intervals(
-            n=x.shape[0], window=window, step=step, 
-            groups=groups, positions=positions, 
-            target_chunk_size=target_chunk_size
-        ) 
-
-        # Get partitions representing the result of each chunked computation, which is at least
-        # broken up by `groups` if provided (possibly more if `target_chunk_size` set)
-        partitions = get_ld_matrix_partitions(x, ais, cis, threshold, scores=scores, **kwargs)
-
-        # Concatenate partitions noting that each partition represents ALL data
-        # for any one group (e.g. chromosome)
-        ldm = get_ld_matrix_dataframe(partitions)
-
-        if return_intervals:
-            return ldm, (ais, cis)
-        else:
-            return ldm
+core.register_backend_function(DaskBackend)(ld_matrix)

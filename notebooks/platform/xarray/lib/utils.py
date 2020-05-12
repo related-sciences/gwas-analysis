@@ -4,6 +4,7 @@ import re
 from xarray.core.pycompat import dask_array_type
 from typing import Any, Sequence
 import collections.abc
+from .config import config
 
 
 class ShapeError(Exception):

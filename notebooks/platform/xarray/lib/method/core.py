@@ -1,14 +1,16 @@
-from ..dispatch import register_function
+from ..dispatch import register_function, register_backend_function
 from xarray import Dataset
 from typing import Optional
+from ..typing import DataFrame
+from . import DOMAIN
 
-DOMAIN = 'method'
+register_backend_function = register_backend_function(DOMAIN)
 
 @register_function(DOMAIN)
 def ld_prune(
-    ldm: 'DataFrame',
+    ldm: DataFrame,
     use_cmp: bool = True
-):
+) -> DataFrame:
     """LD Prune 
 
     Prune variants within a dataset using a sparse LD matrix to find a 
@@ -24,11 +26,10 @@ def ld_prune(
         LD matrix from `ld_matrix`
     use_cmp : bool
         Whether or not to use precomputed score-based comparisons
-        TODO: wire this up in MIS
 
     Returns
     -------
-    array
-        Array with indexes of rows that should be removed
+    DataFrame
+        Dataframe with single field 'index_to_drop' containing pruned row indexes 
     """
     pass

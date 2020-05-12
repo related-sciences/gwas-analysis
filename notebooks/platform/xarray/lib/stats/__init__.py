@@ -1,6 +1,4 @@
-from .core import *
+DOMAIN = __name__.split('.')[-1]
 
-try:
-    from .ld_matrix import dask_backend
-except ImportError:
-    pass
+from . import axis_intervals
+from . import ld_matrix

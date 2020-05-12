@@ -1,6 +1,3 @@
-from .core import *
+DOMAIN = __name__.split('.')[-1]
 
-try:
-    from .ld_prune import dask_backend
-except ImportError:
-    pass
+from . import ld_prune

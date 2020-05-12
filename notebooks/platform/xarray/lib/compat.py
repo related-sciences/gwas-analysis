@@ -18,9 +18,11 @@ def try_import(fn: callable) -> bool:
 
 numpy_array_type = (np.ndarray,)
 xarray_array_type = (xr.DataArray,)
-
+xarray_dataset_type = (xr.Dataset,)
+pandas_dataframe_type = (pd.DataFrame,)
 
 def import_cuda():
+    # pylint: disable=import-error
     import numba.cuda.cudadrv.devicearray.DeviceNDArray
 
 
@@ -43,8 +45,6 @@ if dask_dataframe_installed:
     dask_dataframe_type = (dd.DataFrame,)
 else:
     dask_dataframe_type = ()
-
-pandas_dataframe_type = (pd.DataFrame,)
 
 
 @dataclass

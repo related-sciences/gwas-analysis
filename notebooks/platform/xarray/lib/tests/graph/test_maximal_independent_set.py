@@ -4,9 +4,9 @@ import numpy as np
 import toolz
 import math
 from hypothesis import given, strategies as st, settings
-from lib.graph import networkx_backend, numba_backend
+from lib.graph.maximal_independent_set import networkx_backend, numba_backend
 
-numba_mis = numba_backend.maximal_independent_set
+numba_mis = numba_backend._maximal_independent_set
 
 def to_vertex_ids(g):
     g = np.array(sorted(g.edges))

@@ -8,6 +8,7 @@ from .core import (
 )
 
 from .config import config
+from . import dispatch
 
 from . import io
 from .io.core import (
@@ -17,7 +18,8 @@ from .io.core import (
 
 from . import stats
 from .stats.core import (
-    ld_matrix
+    ld_matrix,
+    axis_intervals
 )
 
 from . import method
@@ -29,3 +31,6 @@ from . import graph
 from .graph.core import (
     maximal_independent_set
 )
+
+config.register('variable.groups', 'contig')
+config.register('variable.positions', 'pos')

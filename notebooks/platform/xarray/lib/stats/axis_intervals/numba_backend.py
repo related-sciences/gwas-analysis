@@ -2,19 +2,24 @@
 import collections
 from numba import njit, typeof
 from numba.typed import List
-from typing import Optional, Type
+from typing import Optional, Type, Union, Tuple
+from typing_extensions import Literal
 import numpy as np
 import xarray as xr
+from xarray import Dataset, DataArray
+from ...dispatch import NumbaBackend, dispatches_from
+from .. import core
+from ...core import VARIABLES
+from . import (
+    axis_interval_fields,  
+    AxisInterval, 
+    chunk_interval_fields, 
+    ChunkInterval
+)
 
-# Note: dataclass not supported by numba: https://github.com/numba/numba/issues/4037
-axis_interval_fields = ['group', 'index', 'start', 'stop', 'count']
+# Make constant for numba
 n_axis_interval_fields = len(axis_interval_fields)
-AxisInterval = collections.namedtuple('AxisInterval', axis_interval_fields)
-
-chunk_interval_fields = ['group', 'min_index', 'max_index', 'min_start', 'max_stop', 'count']
 n_chunk_interval_fields = len(chunk_interval_fields)
-ChunkInterval = collections.namedtuple('ChunkInterval', chunk_interval_fields)
-
 
 
 @njit
@@ -133,7 +138,7 @@ def _to_array(chunk_intervals):
     return cis
 
 @njit
-def _axis_intervals(n, window, step=None, groups=None, positions=None, target_chunk_size=None, dtype=np.int32):
+def __axis_intervals(n, window, step=None, groups=None, positions=None, target_chunk_size=None, dtype=np.int32):
     # window of 0 means do only self comparison, window of 1 means do one to right
     axis_intervals = np.empty((n, n_axis_interval_fields), dtype=dtype)
     chunk_intervals = List()
@@ -144,8 +149,6 @@ def _axis_intervals(n, window, step=None, groups=None, positions=None, target_ch
 
         # Define interval for current iterate along axis using either fixed window
         # size or a provided coordinate vector (as `positions`)
-        # TODO: Test if numba would inline these functions if set conditionally
-        #       to a variable rather than switched on in if statement
         axis_interval = _axis_interval()
         if not _is_none(positions):
             # Positions must be pre-sorted for intervals to be computed correctly
@@ -180,11 +183,19 @@ def _to_dataarray(intervals, typ, dim):
     return xr.DataArray(intervals, coords={'var': list(typ._fields)}, dims=[dim, 'var'])
 
 
-def axis_intervals(window: int, groups=None, positions=None, step: Optional[int]=1, n: Optional[int]=None, 
-        target_chunk_size: Optional[int]=None, dtype: Type=np.int32):
-    # Window is number of variants to right of current, when not using positions; it is inclusive
-    # meaning that a window of 0 indicates self comparison only
-    # For docs: note that groups/positions will coerced to numpy (b/c numba won't do it)
+def _axis_intervals(
+    window: int, 
+    groups=None, 
+    positions=None, 
+    step: Optional[int]=1, 
+    n: Optional[int]=None, 
+    target_chunk_size: Optional[int]=None, 
+    dtype: Type=np.int32
+):
+    """Get axis intervals for overlapping computations
+    
+    See `stats.core.axis_intervals` for documentation.
+    """
     if window < 0:
         raise ValueError(f'`window` must be >= 0 (not {window})')
     if step is not None and step < 1:
@@ -192,7 +203,7 @@ def axis_intervals(window: int, groups=None, positions=None, step: Optional[int]
     if step is not None and step > window:
         raise ValueError(f'`step` must be >= `window` (not step={step}, window={window})')
     if n is None:
-        n = next((v for v in [groups, positions] if v is not None), None)
+        n = next((len(v) for v in [groups, positions] if v is not None), None)
         if n is None:
             raise ValueError('At least one of `n`, `groups` or `positions` must be defined')
     if groups is not None and len(groups) != n:
@@ -201,6 +212,12 @@ def axis_intervals(window: int, groups=None, positions=None, step: Optional[int]
         raise ValueError(f'Size of `positions` vector ({len(positions)}) must equal `n` ({n})')
     if target_chunk_size is not None and target_chunk_size < 1:
         raise ValueError(f'`target_chunk_size` must be >= 1 (not {target_chunk_size})')
+
+    if positions is not None and step is not None:
+        raise ValueError(
+            'One of `positions` or `step` should be set but not both '
+            '(`step` is only applicable to fixed windows, not those based on physical positions).'
+        )
 
     # Default step if not overriden to allow 0 window
     step = step or 1
@@ -216,10 +233,52 @@ def axis_intervals(window: int, groups=None, positions=None, step: Optional[int]
     positions = asarray(positions)
 
     # Compute intervals and associated chunks (as numpy arrays)
-    ais, cis = _axis_intervals(n, window, step=step, groups=groups, positions=positions, target_chunk_size=target_chunk_size, dtype=dtype)
+    ais, cis = __axis_intervals(
+        n, window, step=step, groups=groups, positions=positions, 
+        target_chunk_size=target_chunk_size, 
+        # This must not be a string
+        dtype=np.dtype(dtype)
+    )
 
     # Convert to xarray
     ais = _to_dataarray(ais, AxisInterval, dim='axis')
     cis = _to_dataarray(cis, ChunkInterval, dim='chunk')
     
     return ais, cis
+
+@dispatches_from(core.axis_intervals)
+def axis_intervals(
+    ds: Dataset,
+    window: Optional[int]=None, 
+    step: Optional[int]=1, 
+    unit: Literal['index', 'physical']='index',
+    n: Optional[int]=None, 
+    target_chunk_size: Optional[int]=None, 
+    dtype: Union[str, Type]='int32'
+) -> Tuple[DataArray, DataArray]:
+    ds = ds.to.genotype_count_dataset()
+    groups = ds.get(VARIABLES.contig)
+    positions = ds.get(VARIABLES.pos) if unit == 'physical' else None
+    n = ds.data.shape[0]
+
+    if positions is not None:
+        step = None
+
+    if n is None:
+        raise ValueError('`n` must be provided for interval calculations')
+
+    # Default to full intervals
+    if window is None:
+        window = n
+
+    return _axis_intervals(
+        window=window, 
+        step=step,
+        n=n,
+        groups=groups,
+        positions=positions,
+        target_chunk_size=target_chunk_size,
+        dtype=dtype
+    )
+
+core.register_backend_function(NumbaBackend)(axis_intervals)

@@ -1,0 +1,11 @@
+labextension:
+  factory:
+    module: 'dask.distributed'
+    class: 'LocalCluster'
+    args: []
+    kwargs: {
+      dashboard_address: '0.0.0.0:8787'
+    }
+  default:
+    workers: 8
+    adapt: null

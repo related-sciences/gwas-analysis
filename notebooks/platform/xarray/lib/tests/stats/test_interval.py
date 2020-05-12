@@ -1,4 +1,4 @@
-from lib.stats.interval import axis_intervals
+from lib.stats.axis_intervals.numba_backend import _axis_intervals as axis_intervals
 import numpy as np
 import math
 import pytest
@@ -76,7 +76,7 @@ def test_unit_window(n, target_chunk_size):
 @pytest.mark.parametrize("target_chunk_size", [None, 5, 1])
 def test_window4_step2(target_chunk_size):
     n = 10
-    ais, cis = ais_df(n=n, window=4, step=2) 
+    ais, _ = ais_df(n=n, window=4, step=2) 
     # Manually curated example validating the axis intervals
     # (correctness of chunk intervals implied largely by equal sums of these counts)
     assert ais['count'].tolist() == [5, 4, 5, 4, 5, 4, 4, 3, 2, 1]
@@ -93,7 +93,7 @@ def test_window_by_position(target_chunk_size):
     n = 6
     # Separate windows reachable from first, next three, and last two
     positions = np.array([1, 5, 6, 7, 11, 12])
-    ais, cis = ais_df(n=n, window=3, positions=positions, target_chunk_size=target_chunk_size) 
+    ais, _ = ais_df(n=n, window=3, positions=positions, target_chunk_size=target_chunk_size) 
     assert ais['count'].tolist() == [1, 3, 2, 1, 2, 1]
 
 @pytest.mark.parametrize("target_chunk_size", [None, 3, 1])
@@ -103,7 +103,7 @@ def test_window_by_position_with_groups(target_chunk_size):
     # Note that position decreses at group break
     positions = np.array([1, 5, 6, 4, 8, 9])
     groups = np.array([1, 1, 1, 2, 2, 2])
-    ais, cis = ais_df(n=n, window=3, positions=positions, groups=groups, target_chunk_size=target_chunk_size) 
+    ais, _ = ais_df(n=n, window=3, positions=positions, groups=groups, target_chunk_size=target_chunk_size) 
     assert ais['count'].tolist() == [1, 2, 1, 1, 2, 1]
 
 

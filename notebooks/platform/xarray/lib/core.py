@@ -10,6 +10,7 @@ from xarray import Dataset
 from . import DIM_VARIANT, DIM_SAMPLE, DIM_PLOIDY, DIM_ALLELE
 from .utils import check_array, is_shape_match, to_snake_case
 from .ops import get_mask_array, get_filled_array
+from .config import config
 
 # TODO:
 # - Make type checks structural and not based on attrs
@@ -243,8 +244,6 @@ def retype(ds: Dataset) -> Dataset:
     # TODO: Infer type based on structure
     raise ValueError('Dataset does not have required attribute "type"')
 
-# ----------------------------------------------------------------------
-
 
 # ----------------------------------------------------------------------
 # Accessor/Factory Functions
@@ -277,3 +276,19 @@ class DatasetTransmutationAccessor():
         """Get Dataset with guaranteed type assignment"""
         return self.ds
 
+
+class Variables:
+
+    @property
+    def contig(self):
+        return config.get('variable.contig', 'contig')
+
+    @property
+    def pos(self):
+        return config.get('variable.pos', 'pos')
+
+    @property
+    def data(self):
+        return 'data'
+
+VARIABLES = Variables()

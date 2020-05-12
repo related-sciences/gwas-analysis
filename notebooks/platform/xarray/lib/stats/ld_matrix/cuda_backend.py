@@ -2,9 +2,10 @@ from numba import cuda
 import numpy as np
 import xarray as xr
 import contextlib
+import pandas as pd
 from pandas import DataFrame
 from dask.distributed import Lock
-from ..interval import axis_interval_fields as aif, ChunkInterval
+from ..axis_intervals import axis_interval_fields as aif, ChunkInterval
 from .. import cuda_math as gmath
 
 # Axis interval fields (`aif`) cannot be used directly in kernel,
@@ -147,12 +148,11 @@ def ld_matrix(
         if scores is not None:
             cmp = cmp[mask]
 
-    data_vars = dict(i=idx[:, 0], j=idx[:, 1])
+    cols = dict(i=idx[:, 0], j=idx[:, 1])
     if return_value:
-        data_vars['value'] = res
+        cols['value'] = res
     if scores is not None:
-        data_vars['cmp'] = cmp
-    data_vars = {k: ('pair', v) for k, v in data_vars.items()}
-    df = xr.Dataset(data_vars).to_dataframe()
+        cols['cmp'] = cmp
+    df = pd.DataFrame(cols)
     return df
     

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import functools
-from typing import Hashable, Callable, Union, Sequence, Dict, Type
+from typing import Hashable, Callable, Union, Sequence, Dict, Type, Mapping, Optional
 from typing_extensions import Protocol
 from .config import Configuration
 from .config import config as global_config
@@ -49,20 +49,14 @@ class Dispatchable(Protocol):
 
 class Backend(Dispatchable):
     id: Hashable
-
-    def requirements(self) -> Sequence[Requirement]: ...
+    requirements: Sequence[Requirement]
 
 
 # ----------------------------------------------------------------------
 # Implementations
 
 class ClassBackend(Backend):
-    """Convenience base class for backends also implemented as a class
-
-    Alternatives could include backends that are implemented as Descriptors or Mappings,
-    but classes are likely more familiar/flexible for most devs wishing to contribute or users
-    looking to add custom backends (so this may be all that's necessary)
-    """
+    """Convenience base class for backends also implemented as a class"""
 
     def dispatch(self, fn: Callable, *args, **kwargs):
         # Dispatch to method on self
@@ -70,9 +64,41 @@ class ClassBackend(Backend):
             raise NotImplementedError(f'Backend {self.domain}.{self.id} has no "{fn.__name__}" implementation')
         return getattr(self, fn.__name__)(*args, **kwargs)
 
+    @property
     def requirements(self) -> Sequence[Requirement]:
-        # Return no requirements by default
         return []
+
+class MappingBackend(Backend):
+    """Convenience base class for backends with implementations provided in a mapping"""
+
+    def __init__(self, id: Hashable, fns: Mapping[str, Callable], reqs: Optional[Sequence[Requirement]] = None):
+        self.id = id
+        self.fns = fns
+        self.requirements = reqs
+
+    def dispatch(self, fn: Callable, *args, **kwargs):
+        # Dispatch to method in mapping
+        if not fn.__name__ in self.fns:
+            raise NotImplementedError(f'Backend "{self.id}" has no "{fn.__name__}" implementation')
+        return self.fns[fn.__name__](*args, **kwargs)
+
+class PackageBackend(MappingBackend):
+    """Base backend class for package-based implementations"""
+
+    def __init__(self, fns: Mapping[str, Callable]):
+        super().__init__(id=self.id, fns=fns, reqs=self.requirements)
+
+class DaskBackend(PackageBackend):
+    id = 'dask'
+    requirements = [Requirement('dask')]
+
+class NumbaBackend(PackageBackend):
+    id = 'numba'
+    requirements = [Requirement('numba')]
+
+class NetworkxBackend(PackageBackend):
+    id = 'networkx'
+    requirements = [Requirement('networkx')]
 
 
 def is_compatible(backend: Backend):
@@ -81,7 +107,7 @@ def is_compatible(backend: Backend):
     This is now based solely on installation of packages but may
     expand in the future to OS or system resource constraints as well
     """
-    for req in backend.requirements():
+    for req in backend.requirements:
         status = check_package(req.package_name)
         if not status.installed or not status.compatible:
             return False
@@ -120,6 +146,8 @@ class Dispatcher(Dispatchable):
         # Followed by configuration
         backend_id = backend_id or self.config.get(str(self.domain.append('backend')))
         if backend_id and backend_id != 'auto':
+            if backend_id not in self.backends:
+                raise ValueError(f'Backend "{backend_id}" not implemented for function {fn.__name__}')
             return self.backends[backend_id]
 
         # And then automatic selection/validation:
@@ -128,7 +156,7 @@ class Dispatcher(Dispatchable):
         # For now, simply return the first compatible backend
         backend = next((b for b in self.backends.values() if is_compatible(b)), None)
         if backend is None:
-            raise ValueError(f'No suitable backend found for function {fn.__name__} (domain = {self.domain})')
+            raise ValueError(f'No backend found for function "{fn.__name__}" (domain = "{self.domain}")')
         return backend
 
     def dispatch(self, fn: Callable, *args, **kwargs):
@@ -138,30 +166,56 @@ class Dispatcher(Dispatchable):
 
 
 # ----------------------------------------------------------------------
-# Registry
+# Registration
 #
 # These functions define the sole interaction points for all 
 # frontend/backend coordination across the project
 
 dispatchers: Dict[Domain, Dispatchable] = dict()
 
-def register_function(domain):
-    domain = Domain(domain)
-    if domain not in dispatchers:
-        dispatchers[domain] = Dispatcher(domain)
-        
+def register_function(domain: Union[str, Domain], append: bool=True):
+    """Decorator for frontend functionr registration"""
+    # For some very odd reason, this throws UnboundLocalError
+    # if not aliased to a name other than `domain`
+    tmp = Domain(domain)
     def register(fn: Callable):
+        domain = tmp
+        if append:
+            domain = domain.append(fn.__name__)
+        if domain not in dispatchers:
+            dispatchers[domain] = Dispatcher(domain)
         return dispatchers[domain].register_function(fn)
     return register
 
 
-def register_backend(domain):
+def register_backend(domain: Union[str, Domain]):
+    """Decorator for backend registration"""
     domain = Domain(domain) 
-    if domain not in dispatchers:
-        raise NotImplementedError('Dispatcher for domain {domain} not implemented')
 
     def register(backend: Union[Backend, Type[Backend]]):
+        if domain not in dispatchers:
+            raise NotImplementedError(f'Dispatcher for domain "{domain}" not implemented')
         instance = backend() if isinstance(backend, type) else backend
         dispatchers[domain].register_backend(instance)
         return backend
     return register
+
+
+def register_backend_function(domain: Union[str, Domain]):
+    """Decorator for single-function backend registration"""
+    domain = Domain(domain)
+    def outer(typ: Type[Backend]):
+        def inner(fn: Callable):
+            register = register_backend(domain.append(fn.__name__))
+            return register(typ(fns={fn.__name__: fn}))
+        return inner
+    return outer
+
+
+def dispatches_from(frontend_fn: Callable):
+    """Decorator to append doc strings to backend functions"""
+    def decorator(backend_fn: Callable):
+        # Combine doc strings for backends that may add new parameters or details
+        backend_fn.__doc__ = (frontend_fn.__doc__ or '') + '\n' + (backend_fn.__doc__ or '')
+        return backend_fn
+    return decorator

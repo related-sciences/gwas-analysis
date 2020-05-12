@@ -2,6 +2,7 @@ channels:
 - defaults
 dependencies:
 - pytest
+- pylint
 - hypothesis
 - black
 - flake8

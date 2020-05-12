@@ -5,6 +5,7 @@ from .. import core
 from ..typing import PathType
 from ..compat import Requirement
 from ..dispatch import ClassBackend, register_backend
+from ..dask_ext import dataframe_to_dataset
 from .core import PLINK_DOMAIN
 
 
@@ -61,18 +62,6 @@ def _array_name(f, path):
     return f.__qualname__ + ':' + str(path)
 
 
-def _dd_to_dataset(df, dim):
-    # Is this general enough to move to somewhere common?
-    # Watch: https://github.com/pydata/xarray/issues/3929
-    data_vars = {}
-    for c in df:
-        # Convert Dask Series to xr.DataArray with no coordinates
-        # Use lengths=True to include chunk size calculations
-        arr = df[c].to_dask_array(lengths=True)
-        data_vars[c] = xr.DataArray(arr, dims=dim)
-    return xr.Dataset(data_vars, coords={dim: np.arange(len(df))})
-
-
 # TODO: Make dask usage optional
 @register_backend(PLINK_DOMAIN)
 class PySnpToolsBackend(ClassBackend):
@@ -115,11 +104,12 @@ class PySnpToolsBackend(ClassBackend):
         ds = core.create_genotype_count_dataset(arr)
 
         # Create variant/sample datasets from dataframes
-        ds_fam = _dd_to_dataset(df_fam, dim='sample')
-        ds_bim = _dd_to_dataset(df_bim, dim='variant')
+        ds_fam = dataframe_to_dataset(df_fam, dim='sample', compute_lengths=True, add_coord=False)
+        ds_bim = dataframe_to_dataset(df_bim, dim='variant', compute_lengths=True, add_coord=False)
 
         # Merge
         return ds.merge(ds_fam).merge(ds_bim)
 
+    @property
     def requirements(self):
         return [Requirement('pysnptools'), Requirement('dask')]
