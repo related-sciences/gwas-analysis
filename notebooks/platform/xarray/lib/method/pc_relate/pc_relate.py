@@ -19,6 +19,15 @@ def __clip_mu_maf(mu: T_ARRAY, maf: float) -> T_ARRAY:
     return mu
 
 
+def impute_with_sample_mean(g: T_ARRAY) -> T_ARRAY:
+    missing_values_are_nan = da.where(g >= 0.0, g, np.nan)
+    is_nan = da.isnan(missing_values_are_nan)
+    # TODO: can't use fancy indexing here. measure the impact of masked mask
+    return np.where(is_nan,
+                    da.ma.masked_array(missing_values_are_nan, mask=is_nan).mean(axis=0),
+                    missing_values_are_nan)
+
+
 # TODO (rav):
 #  * double check MAF range (0.0, 1.0) or [0.0, 0.5]
 #  * add support for sample.include
