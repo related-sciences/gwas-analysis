@@ -36,7 +36,7 @@ def __maximal_independent_set(idi, idj, cmp):
             if i < idi[k-1] or (i == idi[k-1] and j < idj[k-1]):
                 raise ValueError(f'Edges must be sorted by vertex id')
 
-        # Always ignore dropped vertex in slowest chan
+        # Always ignore dropped vertex in outer loop
         if i in lost:
             continue
 
@@ -56,17 +56,22 @@ def _maximal_independent_set(idi, idj, cmp=None):
 
 
 @dispatches_from(core.maximal_independent_set)
-def maximal_independent_set(ds: DataMapping) -> Dataset:
+def maximal_independent_set(ds: DataMapping) -> DataMapping:
     """Numba MIS
     
-    This is based on the PLINK algorithm that selects independent vertices from
-    a graph typically implied by excessive LD between variants.
+    This method is based on the PLINK algorithm that selects independent 
+    vertices from a graph implied by excessive LD between variants.
 
-    For an outline of this process, see https://groups.google.com/forum/#!msg/plink2-users/w5TuZo2fgsQ/WbNnE16_xDIJ
+    For an outline of this process, see [this discussion]
+    (https://groups.google.com/forum/#!msg/plink2-users/w5TuZo2fgsQ/WbNnE16_xDIJ).
 
     Raises
     ------
     ValueError if `i` and `j` are not sorted ascending (and in that order)
+
+    Returns
+    -------
+    Dataset
     """
     return core.wrap_mis_vec_fn(_maximal_independent_set)(ds)
 

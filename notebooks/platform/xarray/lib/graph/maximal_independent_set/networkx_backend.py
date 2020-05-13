@@ -1,7 +1,7 @@
 import networkx as nx
 from xarray import Dataset
 from ...typing import DataMapping
-from ...dispatch import register_backend, dispatches_from, NetworkxBackend
+from ...dispatch import dispatches_from, NetworkxBackend
 from .. import core
 
 
@@ -12,10 +12,14 @@ def _maximal_independent_set(idi, idj, cmp):
     return list(set(G.nodes) - set(index_to_keep))
 
 @dispatches_from(core.maximal_independent_set)
-def maximal_independent_set(ds: DataMapping) -> Dataset:
+def maximal_independent_set(ds: DataMapping) -> DataMapping:
     """Networkx MIS
 
     Note: `cmp` is ignored by this backend.
+
+    Returns
+    -------
+    Dataset
     """
     return core.wrap_mis_vec_fn(_maximal_independent_set)(ds)
 

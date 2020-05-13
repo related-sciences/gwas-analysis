@@ -31,11 +31,11 @@ Then for all w >= s,
 runtime complexity = (intsum(w) - intsum(w - s)) * 2n * (m / s) = O(wnm)
 * The worst case is when s = 1
 """
+import math
 import numpy as np
 from numba import cuda
 from ...stats import cuda_math as gmath
-from .utils import dotvec1d, eqvec1d
-import math
+from ..utils import dotvec1d, eqvec1d
 
 # TODO: Make sure given array is C order (row-major)
 # TODO: Need to mean impute missing values (that's what Hail does)
@@ -172,8 +172,7 @@ def num_comparisons(n_rows, window, step):
 
 
 @cuda.jit
-def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_distance, metric_id, out):
-    """LD prune kernel"""
+def _ld_pluck_kernel(x, groups, positions, scores, threshold, window, step, max_distance, metric_id, out):
 
     # Get comparison index for thread and invert to absolute row coordinates
     # pylint: disable=not-callable
@@ -224,11 +223,15 @@ def _ld_prune_kernel(x, groups, positions, scores, threshold, window, step, max_
                 out[max(ri1, ri2)] = False
 
 
-def ld_prune(x, window: int, step: int, threshold: float,
+def ld_pluck(x, window: int, step: int, threshold: float,
              groups=None, positions=None, scores=None,
              metric='r2', max_distance: float = None,
              chunk_offset: int=0):
-    """LD prune
+    """LD Pluck
+
+    Select single variant from connected components implied by LD blocks.
+
+    TODO: add to method.core
 
     Parameters
     ----------
@@ -306,7 +309,7 @@ def ld_prune(x, window: int, step: int, threshold: float,
     # Determine number of pairwise row comparisons necessary
     n_tasks = num_comparisons(nr, window, step)
 
-    kernel = _ld_prune_kernel
+    kernel = _ld_pluck_kernel
     kernel.forall(n_tasks)(
         x, groups=groups, positions=positions, scores=scores, threshold=threshold,
         window=window, step=step, max_distance=max_distance, metric_id=METRIC_IDS[metric],

@@ -97,7 +97,7 @@ def ld_matrix(
 ):
     """Compute LD matrix for predefined axis and chunk intervals
 
-    TODO: Unify with core.ld_matrix
+    TODO: Add adaptor to core.ld_matrix
 
     Parameters
     ----------

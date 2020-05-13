@@ -6,3 +6,4 @@ dependencies:
 - hypothesis
 - black
 - flake8
+- scikit-allel==1.2.1

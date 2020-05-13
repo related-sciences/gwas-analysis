@@ -1,4 +1,4 @@
-from lib.method.ld_prune.tspis.cuda_backend import invert_index, invert_offset, num_comparisons, ld_prune
+from lib.method.ld_pluck.cuda_backend import invert_index, invert_offset, num_comparisons, ld_pluck
 import numpy as np
 import functools
 
@@ -97,8 +97,8 @@ def test_invert_offset():
     assert get_rows(11, window, step) == (3, 4)
 
 
-def test_ld_prune_groups():
-    run = functools.partial(ld_prune, window=3, step=1, threshold=1, positions=None)
+def test_ld_pluck_groups():
+    run = functools.partial(ld_pluck, window=3, step=1, threshold=1, positions=None)
     # 3 vectors, none eliminated despite being equal b/c
     # they're in different groups
     x = np.array([
@@ -110,8 +110,8 @@ def test_ld_prune_groups():
     res = run(x, groups=groups, metric='eq')
     assert np.all(res)
 
-def test_ld_prune_selection():
-    run = functools.partial(ld_prune, step=1, threshold=1, positions=None)
+def test_ld_pluck_selection():
+    run = functools.partial(ld_pluck, step=1, threshold=1, positions=None)
 
     # 3 vectors, none eliminated
     x = np.array([
@@ -139,8 +139,8 @@ def test_ld_prune_selection():
     assert np.all(~res[1:])
     assert res[0]
 
-def test_ld_prune_r2():
-    run = functools.partial(ld_prune, step=3, window=5, groups=None, positions=None)
+def test_ld_pluck_r2():
+    run = functools.partial(ld_pluck, step=3, window=5, groups=None, positions=None)
 
     # Validate that when rows are unique, no correlation is >= 1
     x = unique_row_array((100, 10), 'uint8')

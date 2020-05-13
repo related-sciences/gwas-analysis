@@ -17,7 +17,7 @@ def wrap_mis_vec_fn(fn):
     return mis
 
 @register_function(DOMAIN)
-def maximal_independent_set(ds: DataMapping) -> Dataset:
+def maximal_independent_set(ds: DataMapping, **kwargs) -> DataMapping:
     """Maximal Independent Set
     
     Parameters
@@ -31,11 +31,16 @@ def maximal_independent_set(ds: DataMapping) -> Dataset:
             >0 - The left side is greater
             <0 - The right side is greater
             0  - The two are equal (lowest index is kept)
-    
+    kwargs:
+        Backend-specific options
     Returns
     -------
-    Dataset
-        A dataset with single variable 'index_to_drop'
+    DataMapping
+        A dataset or dataframe with single variable 'index_to_drop'.
+        The result type varies by backend so look at the docs for 
+        the target backend to see what to expect, or use coercion
+        to some target array type (e.g. for numpy, 
+        `np.asarray(maximal_independent_set(ds)['index_to_drop'])`)
     """
     pass
 

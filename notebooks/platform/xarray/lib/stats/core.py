@@ -1,8 +1,9 @@
-from ..dispatch import register_function, register_backend_function
+import xarray as xr
 from xarray import Dataset, DataArray
 from typing import Optional, Union, Type, Tuple
-from ..typing import DataFrame
 from typing_extensions import Literal
+from ..dispatch import register_function, register_backend_function
+from ..typing import DataFrame
 from . import DOMAIN
 
 register_backend_function = register_backend_function(DOMAIN)
@@ -110,3 +111,41 @@ def axis_intervals(
         Tuple with axis and chunk interval definitions
     """
     pass
+
+
+def impute_mean(ds: Dataset, dim: str, variable='data'):
+    """Mean impute variable in a dataset
+    
+    Parameters
+    ----------
+    ds : Dataset
+        Dataset with some variable to impute.
+        When missing values are present, this **must** contain
+        an `is_masked` variable (otherwise nothing will 
+        happen).
+    dim : str
+        Dimension over which means should be computed.
+        For example, in a (variants, samples) data array,
+        `dim='variants'` means that means are computed
+        for each sample and missing values are replaced
+        with that associated mean (per-variant).
+    variable : str
+        Variable in `ds` to impute
+
+    Returns
+    -------
+    Dataset
+        Dataset with `variable` imputed and `is_masked` dropped.  
+        Note that this often leads to a type change (e.g. int8 -> float64)
+    """
+    if not 'is_masked' in ds:
+        return ds
+    return (
+        ds
+        .assign(**{variable: lambda ds: xr.where(
+            ds.is_masked, 
+            ds[variable].mean(dim=dim), 
+            ds[variable]
+        )})
+        .drop('is_masked')
+    )
