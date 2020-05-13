@@ -20,7 +20,8 @@ def ld_prune(
     scores=None,
     axis_intervals_kwargs={},
     ld_matrix_kwargs={},
-    mis_kwargs={}
+    mis_kwargs={},
+    **kwargs
 ) -> DataMapping:
     """LD Prune 
 
@@ -67,18 +68,27 @@ def ld_prune(
         Extra arguments for `ld_matrix`
     mis_kwargs: 
         Extra arguments for `maximal_independent_set`
+    kwargs:
+        'intervals' and 'ld_matrix' can be included as kwargs if predefined
 
     Returns
     -------
     DataMapping
         Data mapping with single variable `index_to_drop` containing pruned row indexes 
     """
-    intervals = axis_intervals(
-        ds, window=window, step=step, unit=unit, 
-        target_chunk_size=target_chunk_size, **axis_intervals_kwargs
+    intervals = kwargs.get(
+        'intervals',
+        axis_intervals(
+            ds, window=window, step=step, unit=unit, 
+            target_chunk_size=target_chunk_size, **axis_intervals_kwargs
+        )
     )
-    ldm = ld_matrix(
-        ds, intervals=intervals, threshold=threshold, scores=scores, **ld_matrix_kwargs
+    ldm = kwargs.get(
+        'ld_matrix',
+        ld_matrix(
+            ds, intervals=intervals, threshold=threshold, 
+            scores=scores, **ld_matrix_kwargs
+        )
     )
     mis = maximal_independent_set(ldm, **mis_kwargs)
     return mis
