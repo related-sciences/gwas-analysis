@@ -83,7 +83,7 @@ class PySnpToolsBackend(ClassBackend):
         names = ['contig', 'variant_id', 'cm_pos', 'pos', 'a1', 'a2']
         return dd.read_csv(str(path) + '.bim', sep=sep, names=names, storage_options=dict(auto_mkdir=False))
 
-    def read_plink(self, path: PathType, chunks='auto', fam_sep='\t', bim_sep=' ', count_A1=True):
+    def read_plink(self, path: PathType, chunks='auto', fam_sep='\t', bim_sep=' ', count_A1=True, lock=False):
         import dask.array as da
 
         # TODO: Have this choose matching chunk sizes for data array and data frames
@@ -97,7 +97,11 @@ class PySnpToolsBackend(ClassBackend):
         arr = da.from_array(
             # Make sure to use asarray=False in order for masked arrays to propagate
             BedReader(path, (len(df_bim), len(df_fam)), count_A1=count_A1),
-            chunks=chunks, lock=False, asarray=False,
+            chunks=chunks, 
+            # Lock must be true with multiprocessing dask scheduler
+            # to not get pysnptools errors (it works w/ threading backend though)
+            lock=lock, 
+            asarray=False,
             name=_array_name(self.read_plink, path)
         )
         # pylint: disable=no-member
