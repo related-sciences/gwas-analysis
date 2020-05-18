@@ -1,16 +1,48 @@
 import numpy as np
 import pytest
+import dask
+import sys
+import inspect
+import xarray as xr
 from hypothesis import given, strategies as st, settings
-from lib.stats.ld_matrix.dask_backend import ld_matrix
+from lib.config import config
+from lib.stats import core
+from lib.stats.core import ld_matrix, axis_intervals
+from lib.dispatch import Domain
+from lib.core import GenotypeCountDataset
+from ..utils import PHASES_NO_SHRINK
 
-# TODO: Use pytest.metafunc and fixtures to parameterize these same functions across backends
+ld_matrix_backends = ['dask/numba', 'dask/cuda']
+axis_intervals_sig = inspect.signature(axis_intervals)
+ld_matrix_prop = str(Domain(core.DOMAIN).append(ld_matrix.__name__).append('backend'))
 
- 
-def ldm_df(*args, diag=False, nan=False, **kwargs):
-    # Do not forget to use single-threaded scheduler in unit tests!
-    # For GPU calcs, you will get 'FakeCUDAModule' object has no attribute 'to_device'
+@pytest.fixture(scope="function", params=ld_matrix_backends)
+def backend(request):
+    # See: https://docs.pytest.org/en/latest/fixture.html
+    backend = request.param
+    
+    # Do not forget to use single-threaded scheduler in unit tests for GPU calcs!
+    # You will get 'FakeCUDAModule' object has no attribute 'to_device'
     # when attempting numba.jit from multiple threads
-    df = ld_matrix(*args, **kwargs).compute(scheduler='single-threaded')
+    if 'cuda' in backend.split('/'):
+        dask.config.set(scheduler='single-threaded')
+    else:
+        dask.config.set(scheduler='threads')
+
+    with config.context(ld_matrix_prop, backend):
+        yield backend
+
+
+def ldm_df(x, ais_kwargs={}, ldm_kwargs={}, diag=False, nan=False, **kwargs):
+    ds = GenotypeCountDataset.create(x)
+    if 'positions' in kwargs and kwargs['positions'] is not None:
+        ds = ds.assign(pos=xr.DataArray(kwargs.pop('positions'), dims=['variant']))
+    if 'groups' in kwargs and kwargs['groups'] is not None:
+        ds = ds.assign(contig=xr.DataArray(kwargs.pop('groups'), dims=['variant']))
+    # ais_kwargs = {k: v for k, v in kwargs.items() if k in axis_intervals_sig.parameters}
+    # ldm_kwargs = {k: v for k, v in kwargs.items() if k not in ais_kwargs}
+    intervals = axis_intervals(ds, **ais_kwargs, backend='numba')
+    df = ld_matrix(ds, intervals=intervals, **ldm_kwargs).compute()
     if not diag:
         df = df.pipe(lambda df: df[df['i'] != df['j']])
     if not nan:
@@ -18,25 +50,29 @@ def ldm_df(*args, diag=False, nan=False, **kwargs):
     return df
 
 @pytest.mark.parametrize("n", [2, 10, 16, 22])
-def test_ld_matrix_window(n):
+def test_ld_matrix_window(backend, n):
     # Create zero row vectors except for 1st and 11th 
     # (make them have non-zero variance)
     x = np.zeros((n, 10), dtype='uint8')
     x[0,:-1] = 1
     x[n//2,:-1] = 1
     # All non-self comparisons are nan except for the above two
-    df = ldm_df(x, window=n, step=n)
+    df = ldm_df(x, dict(window=n, step=n, unit='index'))
     assert len(df) == 1
     assert df.iloc[0].tolist() == [0, n//2, 1.0]
 
     # Do the same with physical distance equal to row index
     positions = np.arange(x.shape[0])
-    df = ldm_df(x, window=n, positions=positions)
+    df = ldm_df(x, dict(window=n, unit='physical'), positions=positions)
     assert len(df) == 1
     assert df.iloc[0].tolist() == [0, n//2, 1.0]
 
 
-def test_ld_matrix_threshold():
+def test_backend_setting(backend):
+    assert config.get(ld_matrix_prop) == backend
+
+@pytest.mark.parametrize('target_chunk_size', [None, 5])
+def test_ld_matrix_threshold(backend, target_chunk_size):
     # Create zero row vectors except for 1st and 11th 
     # (make them have non-zero variance)
     x = np.zeros((10, 10), dtype='uint8')
@@ -46,23 +82,23 @@ def test_ld_matrix_threshold():
     # Make 8th and 9th partially correlated with 3/4
     x[7,:-5] = 1
     x[8,:-5] = 1
-    df = ldm_df(x, window=10)
+    df = ldm_df(x, dict(window=10, step=1, unit='index', target_chunk_size=target_chunk_size))
     # Should be 6 comparisons (2->3,7,8 3->7,8 7->8)
     assert len(df) == 6
     # Only 2->3 and 7->8 are perfectly correlated
     assert len(df[df['value'] == 1.0]) == 2
     # Do the same with a threshold
-    df = ldm_df(x, window=10, threshold=.5)
+    df = ldm_df(x, dict(window=10, step=1, unit='index', target_chunk_size=target_chunk_size), dict(threshold=.5))
     assert len(df) == 2
 
 
 @pytest.mark.parametrize("dtype", [
     dtype 
     for k, v in np.sctypes.items() 
-    for dtype in v if k in ['int', 'uint', 'float']
+    for dtype in v if k in ['int', 'uint']
 ])
-def test_ld_matrix_dtypes(dtype):
-    # Input matrices should work regardless of type
+def test_ld_matrix_dtypes(backend, dtype):
+    # Input matrices should work regardless of integer type
     x = np.zeros((5, 10), dtype=dtype)
     df = ldm_df(x, window=5, diag=True)
     assert len(df) == 5
@@ -89,16 +125,17 @@ def ld_matrix_args(draw):
         groups = list(range(ng)) * (n // ng + 1)
         groups = np.array(sorted(groups[:n]))
         assert n == len(groups)
-    return n, m, dict(window=window, step=step, positions=positions, groups=groups)
+    unit = 'index' if positions is None else 'physical'
+    return n, m, dict(window=window, step=step, unit=unit), dict(positions=positions, groups=groups)
 
 
-@given(ld_matrix_args())
-@settings(max_examples=50, deadline=None)
-def test_ld_matrix_exhaustive_comparisons(args):
+@given(ld_matrix_args()) # pylint: disable=no-value-for-parameter
+@settings(max_examples=50, deadline=None, phases=PHASES_NO_SHRINK)
+def test_ld_matrix_exhaustive_comparisons(backend, args):
     # Validate that no pair-wise comparisons are skipped
-    n, m, args = args
+    n, m, ais_kwargs, kwargs = args
     x = np.zeros((n, m), dtype='uint8')
-    df = ldm_df(x, diag=True, **args, value_init=-99)
+    df = ldm_df(x, ais_kwargs, ldm_kwargs=dict(value_init=-99), diag=True, **kwargs)
     df_unset = df[df['value'] == -99]
     assert len(df_unset) == 0, \
         f'Found {len(df_unset)} unset values; Examples: {df_unset.head(25)}'

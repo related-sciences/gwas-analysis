@@ -1,3 +1,5 @@
+from . import numba_backend
+
 try:
     from . import dask_backend
 except ImportError:
