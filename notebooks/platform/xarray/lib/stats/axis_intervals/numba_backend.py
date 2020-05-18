@@ -22,19 +22,19 @@ n_axis_interval_fields = len(axis_interval_fields)
 n_chunk_interval_fields = len(chunk_interval_fields)
 
 
-@njit
+@njit(nogil=True)
 def _axis_interval():
     # Workaround for lack of numba support for namedtuple.defaults and None
     return AxisInterval(0, 0, 0, 0, -1)
 
 
-@njit
+@njit(nogil=True)
 def _chunk_interval():
     # Workaround for lack of numba support for namedtuple.defaults and None
     return ChunkInterval(0, 0, 0, 0, 0, -1)
 
 
-@njit
+@njit(nogil=True)
 def _rnglen(start_index, stop_index):
     """Index interval size"""
     assert stop_index >= start_index
@@ -43,7 +43,7 @@ def _rnglen(start_index, stop_index):
     return stop_index - start_index 
 
 
-@njit
+@njit(nogil=True)
 def _is_none(array):
     # Note: this boolean condition must include "is not None" check on `positions`
     # to avoid numba error 'Invalid use of Function(<built-in function getitem>) 
@@ -53,7 +53,7 @@ def _is_none(array):
     return array is None or len(array) == 0
 
 
-@njit
+@njit(nogil=True)
 def _clip(i, j, groups):
     # j is exclusive endpoint
     if _is_none(groups):
@@ -63,7 +63,7 @@ def _clip(i, j, groups):
             return x
     return j
 
-@njit
+@njit(nogil=True)
 def _index_interval_right(n, i, window, step, groups, positions):
     """Create index-based interval for items in window to the right of target index"""
     # Notes:
@@ -80,7 +80,7 @@ def _index_interval_right(n, i, window, step, groups, positions):
     )
 
 
-@njit
+@njit(nogil=True)
 def _position_interval_right(n, i, window, step, groups, positions):
     """Create positions-based interval for items in window to the right of target position"""
     j = i + 1
@@ -98,12 +98,12 @@ def _position_interval_right(n, i, window, step, groups, positions):
         count=_rnglen(i, j)
     )
 
-@njit
+@njit(nogil=True)
 def _is_undefined(chunk_interval):
     return chunk_interval.count < 0
 
 
-@njit
+@njit(nogil=True)
 def _update_chunk_interval(chunk_interval, axis_interval):
     ci, ai = chunk_interval, axis_interval
     undefined = _is_undefined(ci)
@@ -123,12 +123,12 @@ def _update_chunk_interval(chunk_interval, axis_interval):
     )
 
 
-@njit
+@njit(nogil=True)
 def _update_axis_intervals(i, axis_intervals, axis_interval):
     for j in range(n_axis_interval_fields):
         axis_intervals[i, j] = axis_interval[j]
 
-@njit
+@njit(nogil=True)
 def _to_array(chunk_intervals):
     n = len(chunk_intervals)
     cis = np.empty((n, n_chunk_interval_fields), dtype=np.int64)
@@ -137,7 +137,7 @@ def _to_array(chunk_intervals):
             cis[i, j] = chunk_intervals[i][j]
     return cis
 
-@njit
+@njit(nogil=True)
 def __axis_intervals(n, window, step=None, groups=None, positions=None, target_chunk_size=None, dtype=np.int32):
     # window of 0 means do only self comparison, window of 1 means do one to right
     axis_intervals = np.empty((n, n_axis_interval_fields), dtype=dtype)

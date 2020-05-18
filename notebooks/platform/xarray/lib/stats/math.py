@@ -24,7 +24,7 @@ def r(gn0, gn1):
             cov += x * y
 
     # early out
-    if n == 0 or v0 == 0 or v1 == 0:
+    if n < 1:
         return np.nan
 
     # compute mean, variance, covariance
@@ -37,8 +37,13 @@ def r(gn0, gn1):
     v0 -= m0 * m0
     v1 -= m1 * m1
 
+    d = math.sqrt(v0 * v1)
+    # np.finfo(np.float32).tiny
+    if d < 1.1754944e-38:
+        return np.nan
+
     # compute correlation coeficient
-    r = cov / math.sqrt(v0 * v1)
+    r = cov / d
 
     return r
 

@@ -93,7 +93,7 @@ def test_window_by_position(target_chunk_size):
     n = 6
     # Separate windows reachable from first, next three, and last two
     positions = np.array([1, 5, 6, 7, 11, 12])
-    ais, _ = ais_df(n=n, window=3, positions=positions, target_chunk_size=target_chunk_size) 
+    ais, _ = ais_df(n=n, window=3, step=None, positions=positions, target_chunk_size=target_chunk_size) 
     assert ais['count'].tolist() == [1, 3, 2, 1, 2, 1]
 
 @pytest.mark.parametrize("target_chunk_size", [None, 3, 1])
@@ -103,7 +103,7 @@ def test_window_by_position_with_groups(target_chunk_size):
     # Note that position decreses at group break
     positions = np.array([1, 5, 6, 4, 8, 9])
     groups = np.array([1, 1, 1, 2, 2, 2])
-    ais, _ = ais_df(n=n, window=3, positions=positions, groups=groups, target_chunk_size=target_chunk_size) 
+    ais, _ = ais_df(n=n, window=3, step=None, positions=positions, groups=groups, target_chunk_size=target_chunk_size) 
     assert ais['count'].tolist() == [1, 2, 1, 1, 2, 1]
 
 
