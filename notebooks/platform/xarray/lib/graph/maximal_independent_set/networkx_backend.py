@@ -4,7 +4,6 @@ from ...typing import DataMapping
 from ...dispatch import dispatches_from, NetworkxBackend
 from .. import core
 
-
 def _maximal_independent_set(idi, idj, cmp):
     G = nx.Graph()
     G.add_edges_from(zip(idi, idj))
@@ -21,6 +20,6 @@ def maximal_independent_set(ds: DataMapping) -> DataMapping:
     -------
     Dataset
     """
-    return core.wrap_mis_vec_fn(_maximal_independent_set)(ds)
+    return core._maximal_independent_set(_maximal_independent_set, ds)
 
 core.register_backend_function(NetworkxBackend)(maximal_independent_set)

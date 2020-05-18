@@ -1,20 +1,13 @@
 """Graph API"""
-from ..dispatch import register_function, register_backend_function
 from xarray import Dataset
 import numpy as np
+from typing import Callable
+from ..dispatch import register_function, register_backend_function
 from ..typing import DataMapping
 from . import DOMAIN
 
 register_backend_function = register_backend_function(DOMAIN)
 
-def wrap_mis_vec_fn(fn):
-    def mis(ds, *args, **kwargs):
-        args = [np.asarray(ds[c]) for c in ['i', 'j']]
-        if 'cmp' in ds:
-            args.append(ds['cmp'])
-        drop = fn(*args, **kwargs)
-        return Dataset({'index_to_drop': ('index', np.array(drop))})
-    return mis
 
 @register_function(DOMAIN)
 def maximal_independent_set(ds: DataMapping, **kwargs) -> DataMapping:
@@ -44,3 +37,11 @@ def maximal_independent_set(ds: DataMapping, **kwargs) -> DataMapping:
     """
     pass
 
+
+def _maximal_independent_set(fn: Callable, ds: DataMapping, **kwargs) -> Dataset:
+    """Default MIS argument and output processing"""
+    args = [np.asarray(ds[c]) for c in ['i', 'j']]
+    if 'cmp' in ds:
+        args.append(ds['cmp'])
+    drop = fn(*args, **kwargs)
+    return Dataset({'index_to_drop': ('index', np.asarray(drop))})

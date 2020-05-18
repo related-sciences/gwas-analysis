@@ -26,7 +26,7 @@ def maximal_independent_set(
     if not isinstance(df, dd.DataFrame):
         raise ValueError(f'Unable to coerce mapping of type "{type(df)}" to dask DataFrame')
     def func(df):
-        ds = numba_backend.maximal_independent_set(df, **kwargs)
+        ds = core.maximal_independent_set(df, **kwargs)
         return ds.to_dataframe()
     return dd.map_partitions(func, df, meta=[('index_to_drop', df.dtypes['i'])])
 

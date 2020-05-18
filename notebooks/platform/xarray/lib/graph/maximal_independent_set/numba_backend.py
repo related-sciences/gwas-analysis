@@ -6,9 +6,9 @@ from ...dispatch import NumbaBackend, dispatches_from
 from .. import core
 
 
-@numba.njit
+@numba.njit(nogil=True)
 def __maximal_independent_set(idi, idj, cmp):
-    """Sequential greedy maximal independent set implementation 
+    """Numba Sequential greedy maximal independent set implementation 
 
     Parameters
     ----------
@@ -73,7 +73,7 @@ def maximal_independent_set(ds: DataMapping) -> DataMapping:
     -------
     Dataset
     """
-    return core.wrap_mis_vec_fn(_maximal_independent_set)(ds)
+    return core._maximal_independent_set(_maximal_independent_set, ds)
 
 
 core.register_backend_function(NumbaBackend)(maximal_independent_set)
