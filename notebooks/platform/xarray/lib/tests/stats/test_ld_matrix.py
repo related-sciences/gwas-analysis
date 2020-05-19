@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 import dask
 import sys
-import inspect
 import xarray as xr
 from hypothesis import given, strategies as st, settings
 from lib.config import config
@@ -13,7 +12,6 @@ from lib.core import GenotypeCountDataset
 from ..utils import PHASES_NO_SHRINK
 
 ld_matrix_backends = ['dask/numba', 'dask/cuda']
-axis_intervals_sig = inspect.signature(axis_intervals)
 ld_matrix_prop = str(Domain(core.DOMAIN).append(ld_matrix.__name__).append('backend'))
 
 @pytest.fixture(scope="function", params=ld_matrix_backends)
@@ -32,6 +30,11 @@ def backend(request):
     with config.context(ld_matrix_prop, backend):
         yield backend
 
+@pytest.fixture(scope="function", params=[True, False])
+def backend_setting(backend, request):
+    if backend == 'dask/cuda' and not request.param:
+        pytest.skip('Non-preallocated backend not implemented on GPU')
+    yield dict(backend=backend, preallocate=request.param)
 
 def ldm_df(x, ais_kwargs={}, ldm_kwargs={}, diag=False, nan=False, **kwargs):
     ds = GenotypeCountDataset.create(x)
@@ -39,8 +42,6 @@ def ldm_df(x, ais_kwargs={}, ldm_kwargs={}, diag=False, nan=False, **kwargs):
         ds = ds.assign(pos=xr.DataArray(kwargs.pop('positions'), dims=['variant']))
     if 'groups' in kwargs and kwargs['groups'] is not None:
         ds = ds.assign(contig=xr.DataArray(kwargs.pop('groups'), dims=['variant']))
-    # ais_kwargs = {k: v for k, v in kwargs.items() if k in axis_intervals_sig.parameters}
-    # ldm_kwargs = {k: v for k, v in kwargs.items() if k not in ais_kwargs}
     intervals = axis_intervals(ds, **ais_kwargs, backend='numba')
     df = ld_matrix(ds, intervals=intervals, **ldm_kwargs).compute()
     if not diag:
@@ -50,20 +51,29 @@ def ldm_df(x, ais_kwargs={}, ldm_kwargs={}, diag=False, nan=False, **kwargs):
     return df
 
 @pytest.mark.parametrize("n", [2, 10, 16, 22])
-def test_ld_matrix_window(backend, n):
+def test_window(backend_setting, n):
     # Create zero row vectors except for 1st and 11th 
     # (make them have non-zero variance)
     x = np.zeros((n, 10), dtype='uint8')
     x[0,:-1] = 1
     x[n//2,:-1] = 1
     # All non-self comparisons are nan except for the above two
-    df = ldm_df(x, dict(window=n, step=n, unit='index'))
+    df = ldm_df(
+        x, 
+        ais_kwargs=dict(window=n, step=n, unit='index'), 
+        ldm_kwargs=dict(preallocate=backend_setting['preallocate'])
+    )
     assert len(df) == 1
     assert df.iloc[0].tolist() == [0, n//2, 1.0]
 
     # Do the same with physical distance equal to row index
     positions = np.arange(x.shape[0])
-    df = ldm_df(x, dict(window=n, unit='physical'), positions=positions)
+    df = ldm_df(
+        x, 
+        ais_kwargs=dict(window=n, unit='physical'), 
+        ldm_kwargs=dict(preallocate=backend_setting['preallocate']), 
+        positions=positions
+    )
     assert len(df) == 1
     assert df.iloc[0].tolist() == [0, n//2, 1.0]
 
@@ -72,7 +82,10 @@ def test_backend_setting(backend):
     assert config.get(ld_matrix_prop) == backend
 
 @pytest.mark.parametrize('target_chunk_size', [None, 5])
-def test_ld_matrix_threshold(backend, target_chunk_size):
+# Ignore warning related to LD calcs for rows with no variance, e.g.
+# "RuntimeWarning: invalid value encountered in greater_equal mask = res >= threshold"
+@pytest.mark.filterwarnings('ignore:invalid value encountered in greater_equal')
+def test_threshold(backend_setting, target_chunk_size):
     # Create zero row vectors except for 1st and 11th 
     # (make them have non-zero variance)
     x = np.zeros((10, 10), dtype='uint8')
@@ -82,13 +95,21 @@ def test_ld_matrix_threshold(backend, target_chunk_size):
     # Make 8th and 9th partially correlated with 3/4
     x[7,:-5] = 1
     x[8,:-5] = 1
-    df = ldm_df(x, dict(window=10, step=1, unit='index', target_chunk_size=target_chunk_size))
+    df = ldm_df(
+        x, 
+        ais_kwargs=dict(window=10, step=1, unit='index', target_chunk_size=target_chunk_size), 
+        ldm_kwargs=dict(preallocate=backend_setting['preallocate'])
+    )
     # Should be 6 comparisons (2->3,7,8 3->7,8 7->8)
     assert len(df) == 6
     # Only 2->3 and 7->8 are perfectly correlated
     assert len(df[df['value'] == 1.0]) == 2
     # Do the same with a threshold
-    df = ldm_df(x, dict(window=10, step=1, unit='index', target_chunk_size=target_chunk_size), dict(threshold=.5))
+    df = ldm_df(
+        x, 
+        ais_kwargs=dict(window=10, step=1, unit='index', target_chunk_size=target_chunk_size), 
+        ldm_kwargs=dict(preallocate=backend_setting['preallocate'], threshold=.5)
+    )
     assert len(df) == 2
 
 
@@ -97,10 +118,15 @@ def test_ld_matrix_threshold(backend, target_chunk_size):
     for k, v in np.sctypes.items() 
     for dtype in v if k in ['int', 'uint']
 ])
-def test_ld_matrix_dtypes(backend, dtype):
+def test_dtypes(backend_setting, dtype):
     # Input matrices should work regardless of integer type
     x = np.zeros((5, 10), dtype=dtype)
-    df = ldm_df(x, window=5, diag=True)
+    df = ldm_df(
+        x, 
+        ais_kwargs=dict(window=5), 
+        ldm_kwargs=dict(preallocate=backend_setting['preallocate']), 
+        diag=True
+    )
     assert len(df) == 5
 
 
@@ -131,11 +157,11 @@ def ld_matrix_args(draw):
 
 @given(ld_matrix_args()) # pylint: disable=no-value-for-parameter
 @settings(max_examples=50, deadline=None, phases=PHASES_NO_SHRINK)
-def test_ld_matrix_exhaustive_comparisons(backend, args):
+def test_exhaustive_comparisons(backend, args):
     # Validate that no pair-wise comparisons are skipped
     n, m, ais_kwargs, kwargs = args
     x = np.zeros((n, m), dtype='uint8')
-    df = ldm_df(x, ais_kwargs, ldm_kwargs=dict(value_init=-99), diag=True, **kwargs)
+    df = ldm_df(x, ais_kwargs, ldm_kwargs=dict(value_init=-99, preallocate=True), diag=True, **kwargs)
     df_unset = df[df['value'] == -99]
     assert len(df_unset) == 0, \
         f'Found {len(df_unset)} unset values; Examples: {df_unset.head(25)}'

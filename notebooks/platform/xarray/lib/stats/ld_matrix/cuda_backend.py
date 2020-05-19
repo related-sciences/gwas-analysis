@@ -10,7 +10,6 @@ from dask.distributed import Lock
 from ...typing import BlockArray
 from ...dispatch import CudaBackend, dispatches_from
 from ..axis_intervals import (
-    ChunkInterval,
     AIF_IDX_INDEX,
     AIF_IDX_START,
     AIF_IDX_STOP,
@@ -19,12 +18,6 @@ from ..axis_intervals import (
 from .. import cuda_math as gmath
 from .. import core
 
-# Axis interval fields (`aif`) cannot be used directly in kernel,
-# TODO: remove if imported constants don't cause an error again
-# AIF_IDX_INDEX = aif.index('index')
-# AIF_IDX_START = aif.index('start')
-# AIF_IDX_STOP = aif.index('stop')
-# AIF_IDX_COUNT = aif.index('count')
 
 @cuda.jit
 def __process_block(x, ais, cts, scores, offset, out_idx, out_res, out_cmp):
@@ -69,12 +62,19 @@ def __process_block(x, ais, cts, scores, offset, out_idx, out_res, out_cmp):
                 out_cmp[idx] = 0
 
 
-def _process_block(x, ais, ci, scores, index_dtype, value_dtype, value_init=np.nan):
-    ais = np.asarray(ais)
-    ci = ChunkInterval(*np.asarray(ci))
+def _process_block(
+    x, 
+    ais, 
+    ci, 
+    offset, 
+    scores, 
+    index_dtype, 
+    value_dtype, 
+    value_init=np.nan, 
+    **kwargs
+):
     n_tasks = len(ais)
     n_pairs = ci.count
-    offset = ci.min_start
     # Cumulative sum of comparisons in each interval offsets into result array
     cts = np.cumsum(ais[:, AIF_IDX_COUNT])
 

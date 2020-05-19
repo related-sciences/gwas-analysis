@@ -1,9 +1,11 @@
 import xarray as xr
 import pandas as pd
+import numpy as np
 from xarray import Dataset, DataArray
 from typing import Optional, Union, Type, Tuple, Callable
 from typing_extensions import Literal
 from numpy import ndarray
+from .axis_intervals import ChunkInterval
 from ..dispatch import register_function, register_backend_function
 from ..typing import DataFrame, BlockArray
 from . import DOMAIN
@@ -228,6 +230,36 @@ def _ld_matrix_args(
     return x, intervals
 
 
+def _ld_matrix_block_args(
+    x: BlockArray, 
+    intervals: Tuple[BlockArray, BlockArray],
+    scores: Optional[BlockArray]=None,
+):
+    """Default LD matrix block argument processor"""
+    ais, ci = intervals
+    if ci.ndim != 1:
+        raise ValueError(f'Expecting 1D chunk interval array, got shape {ci.shape}')
+    if x.shape[0] < ais.shape[0]:
+        raise ValueError(
+            f'Data array (shape={x.shape}) cannot have fewer rows '
+            'than axis intervals array (shape={ais.shape})'
+        )
+    if scores is not None:
+        if scores.ndim != 1:
+            raise ValueError(f'Expecting 1D scores array, got shape {scores.shape}')
+        if x.shape[0] != scores.shape[0]:
+            raise ValueError(
+                'Data array (shape={x.shape}) must have same number of '
+                'rows as scores array (shape={scores.shape})'
+            )
+
+    x = np.asarray(x)
+    ais = np.asarray(ais)
+    ci = ChunkInterval(*np.asarray(ci))
+    offset = ci.min_start
+    return x, ais, ci, offset
+
+
 def _ld_matrix_block_impl(
     fn: Callable,
     x: BlockArray, 
@@ -237,21 +269,11 @@ def _ld_matrix_block_impl(
     return_value: bool = True,
     **kwargs
 ):
-    """Default LD matrix block processor"""
-    axis_intervals, chunk_interval = intervals
-    assert chunk_interval.ndim == 1
-    assert x.shape[0] >= axis_intervals.shape[0]
-    if scores is not None:
-        assert x.shape[0] == scores.shape[0]
+    """Default LD matrix block processor for kernels using pre-allocated results"""
+    x, ais, ci, offset = _ld_matrix_block_args(x, intervals, scores)
 
     # Get vector results from delegate
-    idx, res, cmp = fn(
-        x, 
-        axis_intervals, 
-        chunk_interval, 
-        scores, 
-        **kwargs
-    )
+    idx, res, cmp = fn(x, ais, ci, offset, scores, **kwargs)
 
     # Subset vectors if necessary
     if threshold is not None:

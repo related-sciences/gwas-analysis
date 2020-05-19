@@ -2,7 +2,7 @@ from lib.method.ld_pluck.cuda_backend import invert_index, invert_offset, num_co
 import numpy as np
 import functools
 
-def test_invert_index(self):
+def test_invert_index():
     for case in INDEX_CASES:
         w, s = case['window'], case['step']
         for c in case['indexes']:
@@ -28,7 +28,7 @@ def test_invert_index(self):
             # Test shift beyond int32 max
             test_period_increment(case, int(1E12), tuple(expected))
 
-def test_num_comparisons(self):
+def test_num_comparisons():
     for case in INDEX_CASES:
         n_pairs_per_slice = len(case['indexes']) - 1
         step = case['step']

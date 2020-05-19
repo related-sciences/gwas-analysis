@@ -310,10 +310,18 @@ def ld_pluck(x, window: int, step: int, threshold: float,
     n_tasks = num_comparisons(nr, window, step)
 
     kernel = _ld_pluck_kernel
+    # def _ld_pluck_kernel(x, groups, positions, scores, threshold, window, step, max_distance, metric_id, out):
     kernel.forall(n_tasks)(
-        x, groups=groups, positions=positions, scores=scores, threshold=threshold,
-        window=window, step=step, max_distance=max_distance, metric_id=METRIC_IDS[metric],
-        out=out
+        x, 
+        groups, 
+        positions, 
+        scores, 
+        threshold,
+        window, 
+        step, 
+        max_distance, 
+        METRIC_IDS[metric],
+        out
     )
 
     return out.copy_to_host()
