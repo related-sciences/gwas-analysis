@@ -1,7 +1,8 @@
-import numpy as np
+from typing import Union
+
 import dask
 import dask.array as da
-from typing import Union
+import numpy as np
 
 T_ARRAY = Union[dask.array.Array, np.ndarray]
 
@@ -27,9 +28,7 @@ def impute_with_variant_mean(g: T_ARRAY) -> (T_ARRAY, T_ARRAY):
 # TODO (rav):
 #  * double check MAF range (0.0, 1.0) or [0.0, 0.5]
 #  * add support for sample.include
-def pc_relate(pcs: T_ARRAY,
-              g: T_ARRAY,
-              maf: float = 0.01) -> T_ARRAY:
+def pc_relate(pcs: T_ARRAY, g: T_ARRAY, maf: float = 0.01) -> T_ARRAY:
     """
     Compute PC-Relate https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4716688/
 
@@ -42,13 +41,15 @@ def pc_relate(pcs: T_ARRAY,
                 The default value is 0.01. Must be between (0.0, 0.1).
     :returns: (s x s) pairwise recent kinship estimation matrix
     """
-    if maf < 0.0 or maf > 1.0:
+    if maf <= 0.0 or maf >= 1.0:
         raise ValueError("MAF must be between (0.0, 1.0)")
     missing_g_mask, imputed_g = impute_with_variant_mean(g)
     # 𝔼[gs|V] = 1β0 + Vβ, where 1 is a length _s_ vector of 1s, and β = (β1,...,βD)^T
     # is a length D vector of regression coefficients for each of the PCs
     # TODO: rechunk needs to go
-    pcsi = da.concatenate([da.from_array(np.ones((1, pcs.shape[1]))), pcs], axis=0).rechunk()
+    pcsi = da.concatenate(
+        [da.from_array(np.ones((1, pcs.shape[1]))), pcs], axis=0
+    ).rechunk()
     # TODO (rav): qr is likely not going to scale given the requirements of the current
     #             implementation
     q, r = da.linalg.qr(pcsi.T)
