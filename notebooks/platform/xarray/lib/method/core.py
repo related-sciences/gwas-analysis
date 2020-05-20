@@ -18,8 +18,8 @@ def ld_prune(
     unit: Literal['index', 'physical']='index',
     target_chunk_size: Optional[int]=None, 
     scores=None,
-    axis_intervals_kwargs={},
-    ld_matrix_kwargs={},
+    ais_kwargs={},
+    ldm_kwargs={},
     mis_kwargs={},
     **kwargs
 ) -> DataMapping:
@@ -63,9 +63,9 @@ def ld_prune(
         Name of field to use to prioritize variant selection (e.g. MAF).  Will
         be used directly if provided as an array and otherwise fetched from 
         `ds` if given as a variable name.
-    axis_intervals_kwargs: 
+    ais_kwargs: 
         Extra arguments for `axis_intervals`
-    ld_matrix_kwargs: 
+    ldm_kwargs: 
         Extra arguments for `ld_matrix`
     mis_kwargs: 
         Extra arguments for `maximal_independent_set`
@@ -81,14 +81,14 @@ def ld_prune(
         'intervals',
         axis_intervals(
             ds, window=window, step=step, unit=unit, 
-            target_chunk_size=target_chunk_size, **axis_intervals_kwargs
+            target_chunk_size=target_chunk_size, **ais_kwargs
         )
     )
     ldm = kwargs.get(
         'ld_matrix',
         ld_matrix(
             ds, intervals=intervals, threshold=threshold, 
-            scores=scores, **ld_matrix_kwargs
+            scores=scores, **ldm_kwargs
         )
     )
     mis = maximal_independent_set(ldm, **mis_kwargs)
