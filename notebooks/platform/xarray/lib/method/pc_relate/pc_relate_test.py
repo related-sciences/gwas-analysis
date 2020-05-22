@@ -3,6 +3,7 @@ from pathlib import Path
 
 import dask.array as da
 import numpy as np
+import pandas as pd
 
 import pytest
 from dask_ml.decomposition import PCA
@@ -57,11 +58,33 @@ def plink_data_prefix() -> str:
 
 
 def test_pc_relate_full_no_missing_values(plink_data_prefix: str) -> None:
+    test_resources = Path(plink_data_prefix).parent
+    pcs = da.from_array(
+        pd.read_csv(
+            test_resources.joinpath("pcs.csv").as_posix(), usecols=[1, 2]
+        ).to_numpy()
+    ).T
     g = api.read_plink(plink_data_prefix).data.data
-    pcs = PCA(n_components=4).fit(g).components_[:2]
     phi = pc_relate(pcs, g).compute()
     assert isinstance(phi, np.ndarray)
     assert phi.shape == (1000, 1000)
+
+    # Get genesis/reference results:
+    # TODO (rav): this can be way simpler with better test data,
+    #             but it might be worth to just wait for data generators
+    genesis_phi = pd.read_csv(test_resources.joinpath("kinbtwe.csv"))
+    genesis_phi = genesis_phi[["ID1", "ID2", "kin"]]
+    genesis_phi["ID1"], genesis_phi["ID2"] = genesis_phi.ID1 - 1, genesis_phi.ID2 - 1
+    indices = (genesis_phi["ID1"] * 1000 + genesis_phi["ID2"]).to_numpy()
+    values = genesis_phi["kin"].to_numpy()
+    genesis_phi_full = np.zeros((1000, 1000))
+    np.put(genesis_phi_full, indices, values)
+
+    # Compare with reference/GENESIS:
+    genesis_phi_s = genesis_phi_full[np.triu_indices_from(genesis_phi_full, 1)]
+    phi_s = phi[np.triu_indices_from(phi, 1)]
+    assert len(phi_s) == len(genesis_phi_s)
+    assert np.allclose(phi_s, genesis_phi_s)
 
 
 def test_pc_relate_full_missing_values(plink_data_prefix: str) -> None:
