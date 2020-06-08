@@ -138,7 +138,15 @@ def _to_array(chunk_intervals):
     return cis
 
 @njit(nogil=True)
-def __axis_intervals(n, window, step=None, groups=None, positions=None, target_chunk_size=None, dtype=np.int32):
+def __axis_intervals(
+    n, 
+    window, 
+    step=None, 
+    groups=None, 
+    positions=None, 
+    target_chunk_size=None, 
+    dtype=np.int32
+):
     # window of 0 means do only self comparison, window of 1 means do one to right
     axis_intervals = np.empty((n, n_axis_interval_fields), dtype=dtype)
     chunk_intervals = List()

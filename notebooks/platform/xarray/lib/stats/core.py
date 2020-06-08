@@ -33,7 +33,7 @@ def ld_matrix(
     ----------
     ds : Dataset
         Dataset transmutable to `GenotypeCountDataset`
-    intervals: Tuple[DataArray, DataArray], optional
+    intervals : Tuple[DataArray, DataArray], optional
         Results from `axis_intervals` used to limit LD computations, by default None
         implying that the full LD matrix should be computed.
     threshold : float, optional

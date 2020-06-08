@@ -108,7 +108,7 @@ def __process_block_unallocated(
     rows = list()
     no_threshold = np.isnan(threshold)
 
-    # "Task index" loop, cf. cuda kernel 
+    # "Task index" loop
     for ti in range(ais.shape[0]):
         # Fetch index of target for interval as well as start
         # and stop indexes to compare to for that target
