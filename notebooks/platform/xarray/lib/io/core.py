@@ -7,11 +7,18 @@ from ..typing import PathType
 
 DOMAIN = Domain(DOMAIN)
 PLINK_DOMAIN = DOMAIN.append('plink')
+BGEN_DOMAIN = DOMAIN.append('bgen')
 
 
 @register_function(PLINK_DOMAIN, append=False)
 def read_plink(path, backend=None, **kwargs) -> Dataset:
     """Import PLINK dataset"""
+    pass
+
+
+@register_function(BGEN_DOMAIN, append=False)
+def read_bgen(path, backend=None, **kwargs) -> Dataset:
+    """Import BGEN dataset"""
     pass
 
 
