@@ -20,3 +20,4 @@ dependencies:
   - python-dotenv==0.11.0
   - xlrd
   - dask_labextension
+  - pybgen

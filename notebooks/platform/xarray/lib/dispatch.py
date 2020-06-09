@@ -167,7 +167,7 @@ class Dispatcher(Dispatchable):
 
         backend = next((b for b in self.backends.values() if is_compatible(b)), None)
         if backend is None:
-            raise ValueError(f'No backend found for function "{fn.__name__}" (domain = "{self.domain}")')
+            raise ValueError(f'No compatible backend found for function "{fn.__name__}" (domain = "{self.domain}"). Check you have installed the required packages.')
         return backend, kwargs
 
     def dispatch(self, fn: Callable, *args, **kwargs):

@@ -1,7 +1,9 @@
 channels:
+- conda-forge
 - defaults
 dependencies:
 - pytest
+- pytest-datadir
 - pylint
 - hypothesis
 - black

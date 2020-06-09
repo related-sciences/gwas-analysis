@@ -12,6 +12,7 @@ from . import dispatch
 
 from . import io
 from .io.core import (
+    read_bgen,
     read_plink,
     write_zarr
 )
