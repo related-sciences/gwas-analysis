@@ -4,7 +4,7 @@ import numpy.testing as npt
 # Note that shared_datadir is set up by pytest-datadir
 def test_load_bgen(shared_datadir):
     path = (shared_datadir / "example.bgen")
-    ds = api.read_bgen(path, chunks=(100, 500))
+    ds = api.read_bgen(path, backend='pybgen', chunks=(100, 500))
 
     assert "sample" in ds.dims
     assert "variant" in ds.dims
