@@ -25,9 +25,9 @@ def test_load_bgen(shared_datadir):
 def test_load_bgen_compare_backends(shared_datadir):
     path = (shared_datadir / "example.bgen")
 
-    ds_br = api.read_bgen(path, backend='bgen-reader', chunks=(100, 500, 3)).to.genotype_dosage_dataset()
+    ds_br = api.read_bgen(path, backend='bgen-reader', chunks=(100, 500, 3))
  
-    ds_pb = api.read_bgen(path, backend='pybgen', chunks=(100, 500))
+    ds_pb = api.read_bgen(path, backend='pybgen', chunks=(100, 500, 3))
 
     npt.assert_almost_equal(ds_br["data"].values, ds_pb["data"].values)
 

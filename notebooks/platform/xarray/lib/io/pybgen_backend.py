@@ -22,15 +22,15 @@ class BgenReader(object):
 
         # Use ParallelPyBGEN only to get all the variant seek positions from the BGEN index.
         # No parallel IO happens here.
-        with ParallelPyBGEN(self.path, probs_only=False) as bgen:
+        with ParallelPyBGEN(self.path) as bgen:
             bgen._get_all_seeks()
             self._seeks = bgen._seeks
             n_variants = bgen.nb_variants
             n_samples = bgen.nb_samples
 
-            self.shape = (n_variants, n_samples)
+            self.shape = (n_variants, n_samples, 3)
             self.dtype = dtype
-            self.ndim = 2
+            self.ndim = 3
 
             self.sample_id = bgen.samples
             # This may need chunking for large numbers of variants
@@ -51,7 +51,7 @@ class BgenReader(object):
         seeks_for_chunk = self._seeks[idx[0]]
         if len(seeks_for_chunk) == 0:
             return np.empty((0, 0), dtype=self.dtype)
-        with PyBGEN(self.path, probs_only=False, prob_t=0) as bgen:
+        with PyBGEN(self.path, probs_only=True) as bgen:
             p = [probs for (_, probs) in bgen._iter_seeks(seeks_for_chunk)]
             return np.stack(p)[:,idx[1]]
 
@@ -82,7 +82,7 @@ class PyBgenBackend(ClassBackend):
             name=_array_name(self.read_bgen, path))
 
         # pylint: disable=no-member
-        ds = core.create_genotype_dosage_dataset(arr)
+        ds = core.create_genotype_probability_alt_dataset(arr)
         ds = ds.assign(vars)
         return ds
 
