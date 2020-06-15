@@ -7,6 +7,7 @@ from bgen_reader._bgen_file import bgen_file
 from bgen_reader._bgen_metafile import bgen_metafile
 from bgen_reader._metafile import create_metafile
 from bgen_reader._reader import _infer_metafile_filepath
+from bgen_reader._samples import generate_samples, read_samples_file
 
 from .. import core
 from ..typing import PathType
@@ -26,18 +27,30 @@ class BgenReader(object):
 
         self.metafile_filepath = _infer_metafile_filepath(Path(self.path))
         if not self.metafile_filepath.exists():
-            create_metafile(path, self.metafile_filepath, verbose=True)
+            create_metafile(path, self.metafile_filepath, verbose=False)
 
         with bgen_metafile(self.metafile_filepath) as mf:
             self.n_variants = mf.nvariants
             self.npartitions = mf.npartitions
             self.partition_size = mf.partition_size
 
+            # This may need chunking for large numbers of variants
+            variants_df = mf.create_variants().compute()
+            self.variant_id = variants_df["id"].tolist()
+            self.contig = variants_df["chrom"].tolist()
+            self.pos = variants_df["pos"].tolist()
+            allele_ids = variants_df["allele_ids"].tolist()
+            self.a1, self.a2 = tuple(zip(*[id.split(",") for id in allele_ids]))
+
         with bgen_file(self.path) as bgen:
-            if bgen.contain_samples:
-                self.samples = bgen.read_samples()
+            sample_path = self.path.with_suffix('.sample')
+            if sample_path.exists():
+                self.samples = read_samples_file(sample_path, verbose=False)
             else:
-                pass # TODO: use samples file, or generate/fail
+                if bgen.contain_samples:
+                    self.samples = bgen.read_samples()
+                else:
+                    self.samples = generate_samples(bgen.nsamples)
 
         self.shape = (self.n_variants, len(self.samples), 3)
         self.dtype = dtype
@@ -62,11 +75,10 @@ class BgenReader(object):
             for i in range(start_partition, end_partition + 1):
                 partition = mf.read_partition(i)
                 start_offset = start_partition_offset if i == start_partition else 0
-                # TODO: need to take last partition size into account
-                end_offset = end_partition_offset if i == end_partition else self.partition_size
+                end_offset = end_partition_offset + 1 if i == end_partition else self.partition_size
                 vaddr = partition["vaddr"].tolist()
                 all_vaddr.extend(vaddr[start_offset:end_offset])
-                
+
         with bgen_file(self.path) as bgen:
             genotypes = [bgen.read_genotype(vaddr) for vaddr in all_vaddr]
             probs = [genotype["probs"] for genotype in genotypes]
@@ -84,12 +96,11 @@ class BgenReaderBackend(ClassBackend):
 
         vars = {
             "sample_id": xr.DataArray(np.array(bgen_reader.samples), dims=["sample"]),
-            # TODO: add variant information
-            # "variant_id": xr.DataArray(np.array(bgen_reader.variant_id), dims=["variant"]),
-            # "contig": xr.DataArray(np.array(bgen_reader.contig), dims=["variant"]),
-            # "pos": xr.DataArray(np.array(bgen_reader.pos), dims=["variant"]),
-            # "a1": xr.DataArray(np.array(bgen_reader.a1), dims=["variant"]),
-            # "a2": xr.DataArray(np.array(bgen_reader.a2), dims=["variant"]),
+            "variant_id": xr.DataArray(np.array(bgen_reader.variant_id), dims=["variant"]),
+            "contig": xr.DataArray(np.array(bgen_reader.contig), dims=["variant"]),
+            "pos": xr.DataArray(np.array(bgen_reader.pos), dims=["variant"]),
+            "a1": xr.DataArray(np.array(bgen_reader.a1), dims=["variant"]),
+            "a2": xr.DataArray(np.array(bgen_reader.a2), dims=["variant"]),
         }
 
         arr = da.from_array(
@@ -99,7 +110,8 @@ class BgenReaderBackend(ClassBackend):
             asarray=False,
             name=_array_name(self.read_bgen, path))
 
-        ds = xr.Dataset({"data": (["variant", "sample", "genotype"], arr)})
+        # pylint: disable=no-member
+        ds = core.create_genotype_probability_alt_dataset(arr)
         ds = ds.assign(vars)
         return ds
 

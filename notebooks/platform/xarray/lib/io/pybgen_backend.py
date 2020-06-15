@@ -51,7 +51,7 @@ class BgenReader(object):
         seeks_for_chunk = self._seeks[idx[0]]
         if len(seeks_for_chunk) == 0:
             return np.empty((0, 0), dtype=self.dtype)
-        with PyBGEN(self.path, probs_only=False) as bgen:
+        with PyBGEN(self.path, probs_only=False, prob_t=0) as bgen:
             p = [probs for (_, probs) in bgen._iter_seeks(seeks_for_chunk)]
             return np.stack(p)[:,idx[1]]
 
