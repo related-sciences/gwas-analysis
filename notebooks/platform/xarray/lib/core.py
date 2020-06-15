@@ -7,7 +7,7 @@ import functools
 from dataclasses import dataclass
 from typing import Mapping, Sequence, Any, Type, Hashable
 from xarray import Dataset
-from . import DIM_VARIANT, DIM_SAMPLE, DIM_PLOIDY, DIM_ALLELE
+from . import DIM_VARIANT, DIM_SAMPLE, DIM_PLOIDY, DIM_ALLELE, DIM_GENOTYPE
 from .utils import check_array, is_shape_match, to_snake_case
 from .ops import get_mask_array, get_filled_array
 from .config import config
@@ -200,6 +200,29 @@ class GenotypeProbabilityDataset(GeneticDataset):
         c0alt, c1alt = ds.data[..., 0, 1], ds.data[..., 1, 1]
         # Compute dosage as float in [0, 2]
         data = c0ref * c1alt + c0alt * c1ref + 2 * c0alt * c1alt
+        data = _mask(ds.assign(data=data))
+        return _transmute(GenotypeDosageDataset.create, ds, data)
+
+
+class GenotypeProbabilityAltDataset(GeneticDataset):
+
+    params: Mapping[Hashable, ArrayParameter] = _params(
+        [DIM_VARIANT, DIM_SAMPLE, DIM_GENOTYPE], [np.floating])
+
+    @classmethod
+    def create(cls, data: Any, is_phased: Any = None, is_masked: Any = None, **kwargs) -> Dataset:
+        arrays = dict(data=data, is_phased=is_phased, is_masked=is_masked)
+        return _create_dataset(cls, arrays, **kwargs)
+
+    @staticmethod
+    @transmutation(GenotypeDosageDataset)
+    def to(ds: Dataset) -> Dataset:
+        if not is_shape_match(ds, {DIM_GENOTYPE: 3}):
+            raise ValueError(
+                'Dosage calculation currently only supported for bi-allelic, '
+                'diploid arrays (genotype dimension must have size 3)')
+        # Compute dosage as float in [0, 2]
+        data = ds.data[..., 1] + 2 * ds.data[..., 2]
         data = _mask(ds.assign(data=data))
         return _transmute(GenotypeDosageDataset.create, ds, data)
 
