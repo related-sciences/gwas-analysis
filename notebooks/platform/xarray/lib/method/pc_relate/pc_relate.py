@@ -41,6 +41,7 @@ def pc_relate(pcs: T_ARRAY, g: T_ARRAY, maf: float = 0.01) -> T_ARRAY:
                 The default value is 0.01. Must be between (0.0, 0.1).
     :returns: (s x s) pairwise recent kinship estimation matrix
     """
+    print("running pc_relate")
     if maf <= 0.0 or maf >= 1.0:
         raise ValueError("MAF must be between (0.0, 1.0)")
     missing_g_mask, imputed_g = impute_with_variant_mean(g)
@@ -50,9 +51,12 @@ def pc_relate(pcs: T_ARRAY, g: T_ARRAY, maf: float = 0.01) -> T_ARRAY:
     pcsi = da.concatenate(
         [da.from_array(np.ones((1, pcs.shape[1]))), pcs], axis=0
     ).rechunk()
+    print("pcsi.shape", pcsi.shape)
     # TODO (rav): qr is likely not going to scale given the requirements of the current
     #             implementation
     q, r = da.linalg.qr(pcsi.T)
+    print("q.shape", q.shape)
+    print("r.shape", r.shape)
     # mu, eq: 3
     half_beta = da.linalg.inv(2 * r).dot(q.T).dot(imputed_g.T)
     mu = pcsi.T.dot(half_beta).T
