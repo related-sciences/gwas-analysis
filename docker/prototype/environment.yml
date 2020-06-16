@@ -21,3 +21,4 @@ dependencies:
   - xlrd
   - dask_labextension
   - pybgen
+  - bgen-reader
