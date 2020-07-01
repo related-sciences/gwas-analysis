@@ -8,6 +8,8 @@ from ..dispatch import ClassBackend, register_backend
 from ..dask_ext import dataframe_to_dataset
 from .core import PLINK_DOMAIN
 
+from sgkit import create_genotype_call_dataset
+
 
 class BedReader(object):
 
@@ -26,9 +28,9 @@ class BedReader(object):
             # Contig and positions array (n_variants, 3)
             pos=np.empty((n_sid, 3), dtype='int')
         )
-        self.shape = (n_sid, n_iid)
+        self.shape = (n_sid, n_iid, 2)
         self.dtype = dtype
-        self.ndim = 2
+        self.ndim = 3
 
     @staticmethod
     def _is_empty_slice(s):
@@ -48,7 +50,11 @@ class BedReader(object):
         arr = self.bed[idx[::-1]].read(dtype=np.float32, view_ok=False).val.T
         arr = np.ma.masked_invalid(arr)
         arr = arr.astype(self.dtype)
-        return arr
+        # Add a ploidy dimension, so allele counts of 0, 1, 2 correspond to 00, 01, 11
+        arr2 = np.empty((arr.shape[0], arr.shape[1], 2), dtype=self.dtype)
+        arr2[:,:,0] = np.where(arr == 2, 1, 0) 
+        arr2[:,:,1] = np.where(arr == 0, 0, 1) 
+        return arr2
 
     def close(self):
         # This is not actually crucial since a Bed instance with no
@@ -94,7 +100,7 @@ class PySnpToolsBackend(ClassBackend):
         df_bim = self.read_bim(path, sep=bim_sep)
 
         # Load genotyping data
-        arr = da.from_array(
+        call_gt = da.from_array(
             # Make sure to use asarray=False in order for masked arrays to propagate
             BedReader(path, (len(df_bim), len(df_fam)), count_A1=count_A1),
             chunks=chunks, 
@@ -104,15 +110,36 @@ class PySnpToolsBackend(ClassBackend):
             asarray=False,
             name=_array_name(self.read_plink, path)
         )
-        # pylint: disable=no-member
-        ds = core.create_genotype_count_dataset(arr)
 
-        # Create variant/sample datasets from dataframes
-        ds_fam = dataframe_to_dataset(df_fam, dim='sample', compute_lengths=True, add_coord=False)
-        ds_bim = dataframe_to_dataset(df_bim, dim='variant', compute_lengths=True, add_coord=False)
+        # TODO: either avoid computing Dask arrays, or just use Pandas
+        df_bin_pd = df_bim.compute()
+        df_fam_pd = df_fam.compute()
 
-        # Merge
-        return ds.merge(ds_fam).merge(ds_bim)
+        variant_contig_names = df_bin_pd["contig"].values
+        # TODO: can we get the names from somewhere in a given order? (since following sorts them)
+        u, variant_contig = np.unique(variant_contig_names, return_inverse=True)
+
+        variant_pos = df_bin_pd["pos"].values
+
+        a1 = df_bin_pd["a1"].values
+        a2 = df_bin_pd["a2"].values
+        variant_alleles = np.column_stack((a1, a2))
+        variant_alleles = variant_alleles.astype(np.dtype("S1"))
+
+        variant_id = df_bin_pd["variant_id"].values
+        variant_id = variant_id.astype(str)
+
+        sample_id = df_fam_pd["fam_id"].values # not sure it's labelled correctly, fam_id should be sample_id
+        sample_id = sample_id.astype(str)
+
+        return create_genotype_call_dataset(
+            variant_contig,
+            variant_pos,
+            variant_alleles,
+            sample_id,
+            call_gt=call_gt,
+            variant_id=variant_id
+        )
 
     @property
     def requirements(self):
